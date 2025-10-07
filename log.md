@@ -5,6 +5,7 @@
 - part 3: Tasks Done, deviated from plan
     - check #TODOs in `loader.py`
     - added additional mini tests
+    - random seeds are not in one place
     - output of `cache_index`
             Each line is a JSON object with:
             - task_id: filename stem
@@ -15,3 +16,5 @@
             - test_input_shapes: list of (rows, cols) for each t    est input
             - test_output_shapes: list of (rows, cols) for each test output (may be None)
     - outputs of `create_split_manifests` are in data/processedd folder, as dev_tasks.json and eval_tasks.json
+
+
