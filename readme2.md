@@ -13,4 +13,4 @@ For a Tasks, the train and test examles can all have ddifferent sizes
 
 ![[image.png]]
 
-move 
+we *treat* loaded grids as read-only and copy when transforming. This prevents accidental in-place edits during search or scoring.

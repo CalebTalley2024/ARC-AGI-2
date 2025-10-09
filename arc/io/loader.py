@@ -1,7 +1,7 @@
 import json
 import glob #pattern matching
 from pathlib import Path #pathlib is a library for handling file paths #Path is a class in pathlib
-import random #TODO move to arc/util/seeding.py
+from arc.utils.seeding import set_seed
 
 '''
 - load_task(path) -> dict (train pairs + test pairs)
@@ -169,7 +169,7 @@ def create_split_manifests(dev_ratio=0.2, seed=42):
         seed (int): Random seed for reproducible splits (default: 42)
     """
     
-    random.seed(seed)
+    set_seed(seed)
     
     # Read task IDs from index (only evaluation tasks)
     index_path = Path('data/processed/index.jsonl')
