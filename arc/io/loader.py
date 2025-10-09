@@ -206,3 +206,4 @@ if __name__ == "__main__":
     # Generate index and split manifests
     cache_index()
     create_split_manifests()
+    

@@ -8,7 +8,7 @@ import os
 # Add the project root to Python path (goes one lvl above tests folder)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from data.raw.arc.io.loader import load_task, iter_tasks, is_grid_valid
+from arc.io.loader import load_task, iter_tasks, is_grid_valid
 
 
 def test_load_task_basic():

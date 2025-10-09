@@ -13,7 +13,7 @@
             - n_test_pairs: number of test pairs    
             - train_input_shapes: list of (rows, cols) for each train input
             - train_output_shapes: list of (rows, cols) for each train output
-            - test_input_shapes: list of (rows, cols) for each t    est input
+            - test_input_shapes: list of (rows, cols) for each test input
             - test_output_shapes: list of (rows, cols) for each test output (may be None)
     - outputs of `create_split_manifests` are in data/processedd folder, as dev_tasks.json and eval_tasks.json
 
