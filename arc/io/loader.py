@@ -1,7 +1,7 @@
 import json
 import glob #pattern matching
 from pathlib import Path #pathlib is a library for handling file paths #Path is a class in pathlib
-import random #TODO move to arc/util/seeding.py
+import random #TODO: After implementing arc/utils/seeding.py, replace with set_seed() calls
 
 '''
 - load_task(path) -> dict (train pairs + test pairs)
