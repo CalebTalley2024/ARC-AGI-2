@@ -1,116 +1,104 @@
-"""
-Step 4: Core Grid Type + Safe Operations
+from dataclasses import dataclass
+import numpy as np
 
-This module defines the fundamental Grid type and basic operations.
+# @caleb: i'm using np.int8 instead of np.uint8 in case there is signinficance to adding/subtracting palettes with results outside of 0 to 9
+GridArray = np.ndarray  # (H, W), dtype int8 or uint8
 
-Key concepts:
-- Grid: A 2D array (H×W) where each cell is a color id (0-9)
-- Palette: Set of unique color ids present in a grid
-- Shape: (H, W) - height and width
-- Dtype: np.int8 or np.uint8 for memory efficiency
-
-Design goals:
-- Small, strict, fast operations
-- Immutability by convention (copy when transforming)
-- Deterministic behavior
-- Early validation to catch bugs
-
-Functions to implement:
-1. from_list(lst: list[list[int]]) -> Grid
-   # Convert Python list to Grid with validation
-   # - Check 2D structure
-   # - Validate shape: 0 < H,W <= 30
-   # - Validate values: 0 <= value <= 9
-   # - Ensure contiguous memory layout
-   # - Return Grid object
-
-2. to_list(g: Grid) -> list[list[int]]
-   # Convert Grid back to Python list
-   # - Simple .tolist() call
-   # - Used for JSON serialization
-
-3. palette(g: Grid) -> set[int]
-   # Extract unique colors present in grid
-   # - Use np.unique() for efficiency
-   # - Return as set for fast membership tests
-   # - O(H*W) operation
-
-4. assert_same_shape(a: Grid, b: Grid) -> None
-   # Validate two grids have identical shapes
-   # - Compare (H, W) tuples
-   # - Raise ValueError if mismatch
-   # - Used before diff/comparison operations
-
-5. diff(a: Grid, b: Grid) -> np.ndarray
-   # Create boolean mask of differing cells
-   # - First check same shape
-   # - Return (a.a != b.a) boolean array
-   # - Used for verification and visualization
-
-Grid class structure:
-@dataclass(frozen=True)
 class Grid:
-    # Light wrapper to enforce invariants
-    # a: GridArray (np.ndarray, shape (H,W), dtype int8/uint8)
+    """Light wrapper to enforce invariants."""
+    #treat a as read-only. use copy when changing 
+    #attributes in dataclass format
+    # create Grid (from_list function from Week 0)
+    def __init__(self, a: GridArray, is_copy: bool = False):
+        """Initialize Grid using from_list validation logic."""
+        # validate grid
+        if a.ndim != 2:
+            raise ValueError("Grid must be 2D")
+        if a.shape[0] == 0 or a.shape[1] == 0 or a.shape[0] > 30 or a.shape[1] > 30:
+            raise ValueError("Invalid grid shape; ARC uses <= 30x30 and > 0")
+        if a.min() < 0 or a.max() > 9:
+            raise ValueError("Color ids must be in between 0 to 9")
+        # Check that all values are integers  (using modulo to check end is 0 or a decimal)
+        if not np.all(np.equal(np.mod(a, 1), 0)):
+            raise ValueError("All grid values must be integers")
+        # Convert to int8 and ensure contiguous memory
+        a = np.ascontiguousarray(a, dtype=np.int8)
+        # Set attributes manually
+        self.a = a
+        self.is_copy = is_copy
+        # Make array immutable unless it's a copy
+        self.a.flags.writeable = self.is_copy
+
+    @property
+    def shape(self) -> tuple[int, int]:
+        return self.a.shape
+
+    def copy(self) -> "Grid":
+        '''
+        *treat* loaded grids as read-only and copy when transforming. 
+        This prevents accidental in-place edits during search or scoring.
+        Note: not effected by the frozen=True b/c this is a new Grid
+        '''
+        return Grid(self.a.copy(), is_copy=True)
+
+
+    def palette(self) -> set[int]:
+        """
+        returns the unique colors present in the grid
+        """
+        return set(np.unique(self.a).tolist())
+
+    def to_list(self) -> list[list[int]]:
+        return self.a.tolist()
+
+
+    #representation method for debugging
+    def __repr__(self) -> str:
+        """
+        representation method for debugging
+        """
+        return f"Grid(shape={self.shape}, is_copy={self.is_copy})"
+
+
+def assert_same_shape(a: Grid, b: Grid) -> None:
+    """
+    checks if the shapes of two grids are the same
+    """
+    if a.shape != b.shape:
+        raise ValueError(f"Shape mismatch: {a.shape} vs {b.shape}")
+
+def diff(a: Grid, b: Grid) -> np.ndarray:
+    """Return boolean mask where cells differ."""
+    assert_same_shape(a, b)
+    return (a.a != b.a)
+
+def assert_valid_grid(g: Grid) -> None:
+    """
+    Assert that a Grid object is valid according to ARC constraints.
     
-    # @property shape -> tuple[int, int]
-    # Return (H, W) from underlying array
+    This helper catches hidden shape drift and other validation issues
+    that might occur after transformations, views, or other operations.
     
-    # def copy() -> Grid
-    # Return new Grid with copied array
-    # Prevents accidental mutation
-
-Safety behaviors:
-- Never mutate inputs in place
-- Always return new Grid objects
-- Use np.ascontiguousarray after transforms
-- Validate values stay in 0-9 range
-- Explicit .copy() when modifying
-
-Tests to write (tests/test_core.py):
-- test_round_trip: from_list -> to_list identity
-- test_palette: correct unique colors extracted
-- test_diff_mask: boolean mask has correct True positions
-- test_validation: reject invalid inputs (out of range, wrong shape)
-- test_shape_validation: reject grids > 30x30 or empty
-"""
-
-# TODO: Import numpy as np
-# TODO: Import dataclasses (dataclass)
-# TODO: Define GridArray type alias = np.ndarray
-
-# TODO: Implement Grid dataclass
-#   - frozen=True for immutability
-#   - field: a (GridArray)
-#   - property: shape
-#   - method: copy()
-
-# TODO: Implement from_list(lst, dtype=np.uint8) -> Grid
-#   - Convert to numpy array
-#   - Validate 2D (ndim == 2)
-#   - Validate shape (0 < H,W <= 30)
-#   - Validate values (0 <= v <= 9)
-#   - Ensure contiguous memory
-#   - Return Grid
-
-# TODO: Implement to_list(g: Grid) -> list[list[int]]
-#   - Return g.a.tolist()
-
-# TODO: Implement palette(g: Grid) -> set[int]
-#   - Use np.unique(g.a)
-#   - Convert to set and return
-
-# TODO: Implement assert_same_shape(a: Grid, b: Grid) -> None
-#   - Compare a.shape vs b.shape
-#   - Raise ValueError with descriptive message if different
-
-# TODO: Implement diff(a: Grid, b: Grid) -> np.ndarray
-#   - Call assert_same_shape first
-#   - Return boolean array (a.a != b.a)
-
-# Common pitfalls to avoid:
-# - Row/column confusion: always use (row, col) = (y, x) indexing
-# - Dtype overflow: uint8 wraps at 255, prefer int8 with range checks
-# - In-place edits: always work on copies
-# - Non-contiguous arrays: call np.ascontiguousarray() after transforms
-# - Shape drift: validate shapes after operations
+    Args:
+        g: Grid object to validate
+        
+    Raises:
+        ValueError: If grid violates ARC constraints
+    """
+    if not isinstance(g, Grid):
+        raise ValueError(f"Expected Grid object, got {type(g)}")
+    
+    if g.a.ndim != 2:
+        raise ValueError(f"Grid must be 2D, got {g.a.ndim}D")
+    
+    if g.a.shape[0] == 0 or g.a.shape[1] == 0:
+        raise ValueError(f"Grid cannot have zero dimensions, got shape {g.a.shape}")
+    
+    if g.a.shape[0] > 30 or g.a.shape[1] > 30:
+        raise ValueError(f"Grid exceeds ARC size limit (30x30), got shape {g.a.shape}")
+    
+    if g.a.min() < 0 or g.a.max() > 9:
+        raise ValueError(f"Grid colors must be in range [0, 9], got range [{g.a.min()}, {g.a.max()}]")
+    
+    if not g.a.flags.c_contiguous:
+        raise ValueError("Grid array is not contiguous in memory - use np.ascontiguousarray()")

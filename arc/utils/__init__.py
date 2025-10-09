@@ -1,5 +1,1 @@
-"""
-Utilities module
-
-Provides seeding, logging, and other helper functions.
-"""
+# ARC utils package initialization
