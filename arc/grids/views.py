@@ -161,7 +161,7 @@ from dataclasses import dataclass
 from typing import Tuple
 from arc.grids.core import Grid
 
-D4 = ['id','rot90','rot180','rot270','flip_h','flip_v','transpose','transpose_flip']
+D4 = ['id','rot90','rot180','rot270','flip_h','flip_v','transpose','transpose_flip','flip_transpose']
 
 # frozen for hashability (config spec)
 @dataclass(frozen=True)
@@ -191,6 +191,8 @@ def geom_apply(a: np.ndarray, name: str) -> np.ndarray:
       return a.T
    elif name == 'transpose_flip':
       return np.flip(a.T, axis=0)
+   elif name == 'flip_transpose':
+      return np.flip(a, axis=0).T
    else:
       raise ValueError(f"Unknown geometry operation: {name}")
 
@@ -199,7 +201,7 @@ def geom_inverse(name: str) -> str:
    """
    get the inverse of a geometry operation.
    """
-   inv = {'id':'id', 'rot90':'rot270', 'rot180':'rot180', 'rot270':'rot90', 'flip_h':'flip_h', 'flip_v':'flip_v', 'transpose':'transpose', 'transpose_flip':'transpose_flip'}
+   inv = {'id':'id', 'rot90':'rot270', 'rot180':'rot180', 'rot270':'rot90', 'flip_h':'flip_h', 'flip_v':'flip_v', 'transpose':'transpose', 'transpose_flip':'flip_transpose', 'flip_transpose':'transpose_flip'}
    return inv[name]
 
 def apply_color_map(a: np.ndarray, cmap: Tuple[int,...]) -> np.ndarray:
@@ -260,8 +262,7 @@ def identity_cmap() -> Tuple[int,...]:
    """
    return tuple(range(10))
 
-# TODO: Implement generate_palette_permutations(palette: set[int], max_count: int) -> list
-#   - Start with identity permutation
+# TODO:improve
 #   - Strategy A: Generate k-cycles on palette colors
 #   - Strategy B: Build co-occurrence matrix from train pairs
 #     - Use scipy.optimize.linear_sum_assignment for best matching
