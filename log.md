@@ -39,3 +39,8 @@ Part 4
     - updated `loader.py`` with seeding from `seeding.py`
 - other
     - made `run_tests.py` in `scripts/` that runs all test in `tests/` foler
+
+## 10-9-25 @seun
+Part 5
+- Implemented part 5 with test, still early, would have to double check
+- need to update generate_`palette_permutations()`
