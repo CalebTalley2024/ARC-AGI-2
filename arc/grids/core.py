@@ -59,6 +59,13 @@ class Grid:
         """
         return f"Grid(shape={self.shape}, is_copy={self.is_copy})"
 
+def from_list(lst: list[list[int]], dtype=np.int8,  is_copy = False) -> Grid:
+    '''
+    converts list of lists of integers to a Grid object
+    '''
+    a = np.array(lst, dtype=dtype, copy=True)
+    #all validation happens in the Grid constructor, so no need to validate here
+    return Grid(a, is_copy)
 
 def assert_same_shape(a: Grid, b: Grid) -> None:
     """

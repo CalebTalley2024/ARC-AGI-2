@@ -40,7 +40,13 @@ Part 4
 - other
     - made `run_tests.py` in `scripts/` that runs all test in `tests/` foler
 
-## 10-9-25 @seun
-Part 5
-- Implemented part 5 with test, still early, would have to double check
-- need to update generate_`palette_permutations()`
+## 10 15 25 @caelb
+- added `from_list` back, added corresponding tests for the function
+- updated gitignore
+- removed pycache folders
+    ./tests/__pycache__
+    ./arc/io/__pycache__
+    ./arc/utils/__pycache__
+    ./arc/grids/__pycache__
+    ./arc/__pycache__
+
