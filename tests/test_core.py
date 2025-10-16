@@ -5,7 +5,7 @@ import numpy as np
 # Add the project root to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from arc.grids.core import diff, assert_valid_grid, Grid
+from arc.grids.core import diff, assert_valid_grid, Grid, from_list
 
 
 def test_round_trip():
@@ -122,6 +122,36 @@ def test_int8_dtype():
     assert np.array_equal(g2.a, np.array([[1, 2], [3, 4]], dtype=np.int8))
     assert np.array_equal(g3.a, np.array([[1, 2], [3, 4]], dtype=np.int8))
 
+def test_from_list_basic():
+    """Test basic functionality of from_list function."""
+    # Test basic conversion
+    lst = [[0, 1, 2], [3, 4, 5]]
+    g = from_list(lst)
+    assert isinstance(g, Grid)
+    assert g.shape == (2, 3)
+    assert g.to_list() == lst
+
+def test_from_list_is_copy_flag():
+    """Test that from_list respects the is_copy flag."""
+    lst = [[1, 2], [3, 4]]
+    
+    # Test with is_copy=False (default)
+    g1 = from_list(lst, is_copy=False)
+    assert g1.is_copy == False
+    assert g1.a.flags.writeable == False
+    
+    # Test with is_copy=True
+    g2 = from_list(lst, is_copy=True)
+    assert g2.is_copy == True
+    assert g2.a.flags.writeable == True
+
+def test_from_list_round_trip():
+    """Test round-trip conversion: list -> Grid -> list."""
+    original_lst = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+    g = from_list(original_lst)
+    result_lst = g.to_list()
+    assert result_lst == original_lst
+
 if __name__ == "__main__":
     test_round_trip()
     test_palette()
@@ -133,4 +163,11 @@ if __name__ == "__main__":
     test_is_copy_flag()
     test_integer_validation()
     test_int8_dtype()
+<<<<<<< HEAD
     print("All tests passed!")
+=======
+    test_from_list_basic()
+    test_from_list_is_copy_flag()
+    test_from_list_round_trip()
+    print("All tests passed!")
+>>>>>>> f314c52 (small changes to gitignore)
