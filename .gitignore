@@ -141,7 +141,6 @@ Thumbs.db
 *.pt
 *.pth
 *.ckpt
-data/
 logs/
 outputs/
 checkpoints/
