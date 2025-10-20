@@ -144,3 +144,5 @@ Thumbs.db
 logs/
 outputs/
 checkpoints/
+uv.lock
+
