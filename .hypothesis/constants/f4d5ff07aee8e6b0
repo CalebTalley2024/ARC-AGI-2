@@ -1,0 +1,4 @@
+# file: /Users/seunadekunle/school/nlp/ARC-AGI-2/arc/grids/views.py
+# hypothesis_version: 6.140.3
+
+['flip_h', 'flip_v', 'id', 'input', 'output', 'rot180', 'rot270', 'rot90', 'test', 'train', 'transpose', 'transpose_flip']
