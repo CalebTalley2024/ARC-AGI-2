@@ -18,7 +18,7 @@ ViewSpec structure:
 @dataclass(frozen=True)
 class ViewSpec:
     # geom: str - geometry transform name
-    #   Options: 'id', 'rot90', 'rot180', 'rot270', 
+    #   Options: 'id', 'rot90', 'rot180', 'rot270',
     #            'flip_h', 'flip_v', 'transpose', 'transpose_flip'
     # color_map: Tuple[int, ...] - length-10 permutation of {0..9}
     #   Example: (0,1,2,3,4,5,6,7,8,9) is identity
@@ -156,9 +156,11 @@ Common pitfalls:
 - Self-inverse ops: flip_h, flip_v, transpose, rot180 are their own inverses
 """
 
-import numpy as np
 from dataclasses import dataclass
 from typing import Tuple
+
+import numpy as np
+
 from arc.grids.core import Grid
 
 D4 = ['id','rot90','rot180','rot270','flip_h','flip_v','transpose','transpose_flip','flip_transpose']
@@ -254,7 +256,7 @@ def invert_view_answer(ans_grid: Grid, spec: ViewSpec) -> Grid:
    """
    invert a view spec to a grid.
    """
-   return apply_view_grid(ans_grid, spec)
+   return invert_view_grid(ans_grid, spec)
 
 def identity_cmap() -> Tuple[int,...]:
    """
@@ -262,19 +264,145 @@ def identity_cmap() -> Tuple[int,...]:
    """
    return tuple(range(10))
 
-# TODO:improve
-#   - Strategy A: Generate k-cycles on palette colors
-#   - Strategy B: Build co-occurrence matrix from train pairs
-#     - Use scipy.optimize.linear_sum_assignment for best matching
-#     - Add nearby permutations (swap pairs)
-#   - Strategy C: Add 1-2 random permutations (seeded)
-#   - Return list of at most max_count permutations
-# TODO: improve
-def generate_palette_permutations(palette: set[int], max_count: int) -> list[Tuple[int,...]]:
+def generate_palette_permutations(palette: set[int], max_count: int = 8, seed: int = 42) -> list[Tuple[int,...]]:
    """
-   generate palette permutations.
-   """
-   return [identity_cmap()]
+   Generate smart color permutations for a given palette.
 
-# TODO: Implement connected-component relabeling view
-# TODO: Implement cropping/patch views with inverse (pad back)
+   Combines three strategies:
+   - Strategy A: Identity + small k-cycles on palette colors
+   - Strategy B: Random permutations on palette (seeded for reproducibility)
+   - Strategy C: Swap pairs within palette
+
+   Args:
+       palette: Set of colors actually used in the task (subset of 0-9)
+       max_count: Maximum number of permutations to return
+       seed: Random seed for reproducibility
+
+   Returns:
+       List of color map tuples (length 10), at most max_count items
+   """
+   import random
+   from itertools import permutations as iter_perms
+
+   result = []
+   pal_list = sorted(palette)
+
+   # Always include identity
+   result.append(identity_cmap())
+
+   # strategy A: generate k-cycles on palette colors
+   # for small palettes (≤4 colors), try all permutations
+   if len(pal_list) <= 4 and len(pal_list) > 1:
+       for perm in iter_perms(pal_list):
+           if len(result) >= max_count:
+               break
+           # build full color map with this permutation on palette
+           cmap = list(range(10))
+           for i, color in enumerate(pal_list):
+               cmap[color] = perm[i]
+           result.append(tuple(cmap))
+
+   # strategy B: for larger palettes, generate rotations (k-cycles)
+   elif len(pal_list) > 1:
+       # rotate palette colors: [a,b,c,d] -> [b,c,d,a], [c,d,a,b], etc.
+       for shift in range(1, min(len(pal_list), max_count - len(result))):
+           cmap = list(range(10))
+           rotated = pal_list[shift:] + pal_list[:shift]
+           for i, color in enumerate(pal_list):
+               cmap[color] = rotated[i]
+           result.append(tuple(cmap))
+
+   # strategy C: random jitter - add 1-2 random permutations (seeded)
+   if len(pal_list) > 1 and len(result) < max_count:
+       rng = random.Random(seed)
+       for _ in range(min(2, max_count - len(result))):
+           cmap = list(range(10))
+           shuffled = pal_list.copy()
+           rng.shuffle(shuffled)
+           for i, color in enumerate(pal_list):
+               cmap[color] = shuffled[i]
+           # avoid duplicates
+           cmap_tuple = tuple(cmap)
+           if cmap_tuple not in result:
+               result.append(cmap_tuple)
+
+   return result[:max_count]
+
+# TODO: integrate with steps 6 and 7
+def generate_data_driven_permutations(train_pairs: list[dict], palette: set[int], max_count: int = 5) -> list[Tuple[int,...]]:
+   """
+   generate color permutations based on input->output color co-occurrence in training pairs.
+
+   uses Hungarian algorithm (linear_sum_assignment) to find optimal color mappings
+   based on how colors align between inputs and outputs.
+
+   Args:
+       train_pairs: List of {"input": Grid, "output": Grid} dicts
+       palette: Set of colors used in the task
+       max_count: Maximum permutations to generate
+
+   Returns:
+       List of color map tuples based on training data patterns
+   """
+   try:
+       from scipy.optimize import linear_sum_assignment
+   except ImportError:
+       # Fallback if scipy not available
+       return [identity_cmap()]
+
+   # Build co-occurrence matrix C[in_color][out_color]
+   # Count how often input color i appears at same position as output color j
+   C = np.zeros((10, 10), dtype=int)
+
+   for pair in train_pairs:
+       inp = pair["input"].a
+       out = pair["output"].a
+
+       # Only count if shapes match
+       if inp.shape == out.shape:
+           for in_color in range(10):
+               for out_color in range(10):
+                   # Count positions where input has in_color and output has out_color
+                   C[in_color, out_color] += np.sum((inp == in_color) & (out == out_color))
+
+   result = []
+   pal_list = sorted(palette)
+
+   # Always include identity
+   result.append(identity_cmap())
+
+   if len(pal_list) <= 1:
+       return result
+
+   # Extract submatrix for palette colors only
+   C_pal = np.zeros((len(pal_list), len(pal_list)), dtype=int)
+   for i, in_c in enumerate(pal_list):
+       for j, out_c in enumerate(pal_list):
+           C_pal[i, j] = C[in_c, out_c]
+
+   # Solve max-weight assignment (negate for min-cost algorithm)
+   row_ind, col_ind = linear_sum_assignment(-C_pal)
+
+   # Build color map from assignment
+   cmap = list(range(10))
+   for i, j in zip(row_ind, col_ind):
+       cmap[pal_list[i]] = pal_list[j]
+
+   cmap_tuple = tuple(cmap)
+   if cmap_tuple != identity_cmap():
+       result.append(cmap_tuple)
+
+   # Generate nearby permutations by swapping pairs
+   if len(result) < max_count and len(pal_list) >= 2:
+       for i in range(len(pal_list) - 1):
+           if len(result) >= max_count:
+               break
+           # Swap two adjacent colors in the assignment
+           cmap_swap = list(cmap)
+           c1, c2 = pal_list[i], pal_list[i + 1]
+           cmap_swap[c1], cmap_swap[c2] = cmap_swap[c2], cmap_swap[c1]
+           swap_tuple = tuple(cmap_swap)
+           if swap_tuple not in result:
+               result.append(swap_tuple)
+
+   return result[:max_count]

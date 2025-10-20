@@ -1,5 +1,6 @@
 import numpy as np
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from arc.grids.core import Grid
 from arc.grids.views import (
@@ -8,6 +9,8 @@ from arc.grids.views import (
     apply_color_map,
     apply_view_grid,
     apply_view_task,
+    generate_data_driven_permutations,
+    generate_palette_permutations,
     geom_apply,
     geom_inverse,
     identity_cmap,
@@ -265,3 +268,59 @@ def test_color_range_property(grid, spec):
     transformed = apply_view_grid(grid, spec)
     assert transformed.a.min() >= 0
     assert transformed.a.max() <= 9
+
+
+# Test palette permutation generation
+def test_generate_palette_permutations_small():
+    """Test permutation generation for small palette."""
+    palette = {0, 1, 2}
+    perms = generate_palette_permutations(palette, max_count=8)
+
+    # Should include identity
+    assert identity_cmap() in perms
+
+    # All should be valid permutations
+    for perm in perms:
+        assert len(perm) == 10
+        assert set(perm) == set(range(10))
+
+    # Should have multiple permutations for palette with 3 colors
+    assert len(perms) > 1
+
+
+def test_generate_palette_permutations_large():
+    """Test permutation generation for larger palette."""
+    palette = {0, 1, 2, 3, 4, 5}
+    perms = generate_palette_permutations(palette, max_count=8)
+
+    # Should include identity
+    assert identity_cmap() in perms
+
+    # Should respect max_count
+    assert len(perms) <= 8
+
+    # All should be valid
+    for perm in perms:
+        assert set(perm) == set(range(10))
+
+
+def test_generate_data_driven_permutations():
+    """Test data-driven permutation generation."""
+    # Create simple training pairs where colors swap
+    train_pairs = [
+        {
+            "input": Grid(np.array([[0, 1], [1, 0]])),
+            "output": Grid(np.array([[1, 0], [0, 1]]))
+        }
+    ]
+    palette = {0, 1}
+
+    perms = generate_data_driven_permutations(train_pairs, palette, max_count=5)
+
+    # Should include identity
+    assert identity_cmap() in perms
+
+    # All should be valid
+    for perm in perms:
+        assert len(perm) == 10
+        assert set(perm) == set(range(10))
