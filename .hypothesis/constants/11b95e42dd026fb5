@@ -1,4 +1,0 @@
-# file: /Users/seunadekunle/school/nlp/ARC-AGI-2/.venv/bin/pytest
-# hypothesis_version: 6.140.3
-
-['-script.pyw', '.exe', '__main__']
