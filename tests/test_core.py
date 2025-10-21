@@ -163,11 +163,7 @@ if __name__ == "__main__":
     test_is_copy_flag()
     test_integer_validation()
     test_int8_dtype()
-<<<<<<< HEAD
-    print("All tests passed!")
-=======
     test_from_list_basic()
     test_from_list_is_copy_flag()
     test_from_list_round_trip()
     print("All tests passed!")
->>>>>>> f314c52 (small changes to gitignore)
