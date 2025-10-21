@@ -18,3 +18,24 @@
     - outputs of `create_split_manifests` are in data/processedd folder, as dev_tasks.json and eval_tasks.json
 
 
+- review part 3 with Vedant and Seun
+
+
+## 10 8 25 - @caleb
+
+Part 4
+- implemented all off Part 4 with changes
+- changes
+    - i'm using np.int8 instead of np.uint8 in case there is signinficance to adding/subtracting palettes with results outside of 0 to 9
+
+    - all seed in seeding.py
+
+    - change in Part 4: made `palette` and `to_list` methods of Grid, as opposed to general functions
+
+    - made `from_list` the `__init__` constructor
+
+    - added multiple additional tests and Grid validation checks
+- update previous parts
+    - updated `loader.py`` with seeding from `seeding.py`
+- other
+    - made `run_tests.py` in `scripts/` that runs all test in `tests/` foler
