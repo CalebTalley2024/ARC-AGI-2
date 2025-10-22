@@ -1,0 +1,99 @@
+"""
+Step 9: Base Configuration File
+
+This YAML file contains all configurable parameters for the ARC project.
+
+Configuration sections:
+1. Environment settings (seeds, devices)
+2. Data paths
+3. View generation settings
+4. Serialization settings
+5. Model settings (future)
+6. Evaluation settings
+
+Usage:
+  # Load in Python:
+  import yaml
+  with open('configs/base.yaml') as f:
+      config = yaml.safe_load(f)
+"""
+
+# Environment
+seed: 42
+device: "auto"  # 'cuda', 'cpu', or 'auto' (auto-detect)
+num_workers: 4
+
+# Data paths
+data:
+  raw_dir: "data/raw/arc"
+  processed_dir: "data/processed"
+  output_dir: "out"
+  
+# View generation (Step 5)
+views:
+  # Geometry transforms to use (subset of D₄ group)
+  geometry:
+    - "id"
+    - "rot90"
+    - "rot180"
+    - "rot270"
+    - "flip_h"
+    - "flip_v"
+  
+  # Color permutation strategy
+  color_permutations:
+    strategy: "data_driven"  # 'identity', 'small_cycles', 'data_driven', 'random'
+    max_count: 8  # Maximum number of color permutations per task
+  
+  # Serialization orders
+  serialization:
+    - "row"
+    - "col"
+  
+  # Total view budget (geometry × color_perm × serialization)
+  max_views_per_task: 96
+
+# Serialization (Step 6)
+tokenization:
+  format: "explicit"  # 'explicit' (with [WIDTH], [HEIGHT]) or 'implicit' (W H as numbers)
+  include_metadata: true  # Include [N_TRAIN], [COLORS], etc.
+  default_serialization: "row"  # 'row' or 'col'
+
+# Visualization (Step 7)
+visualization:
+  cell_size: 20  # Pixels per cell
+  add_grid_lines: true
+  grid_line_width: 0.5
+  output_format: "png"  # 'png' or 'svg'
+
+# Evaluation (Step 8)
+evaluation:
+  mode: "baseline"  # 'baseline', 'dfs', 'poe', 'ensemble'
+  time_budget: 43200  # 12 hours in seconds (Kaggle limit)
+  per_task_buffer: 0.1  # Reserve 10% buffer for I/O
+  
+  # Baseline strategy
+  baseline:
+    strategy: "copy_input"  # 'copy_input', 'blank', 'copy_first_train_output'
+  
+  # Future: DFS settings
+  dfs:
+    max_depth: 5
+    beam_width: 10
+  
+  # Future: PoE settings
+  poe:
+    aggregation: "mean"  # 'mean', 'max', 'vote'
+
+# Logging (Step 9)
+logging:
+  level: "INFO"  # 'DEBUG', 'INFO', 'WARNING', 'ERROR'
+  format: "rich"  # 'rich', 'json', 'simple'
+  log_file: null  # Path to log file (null = console only)
+  log_timing: true  # Log per-task timing
+  timing_csv: "out/timing.csv"
+
+# Reproducibility
+reproducibility:
+  deterministic: true
+  benchmark: false  # Set cudnn.benchmark = False for reproducibility
