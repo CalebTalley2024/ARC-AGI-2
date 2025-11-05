@@ -1,6 +1,8 @@
+import glob  # pattern matching
 import json
-import glob #pattern matching
-from pathlib import Path #pathlib is a library for handling file paths #Path is a class in pathlib
+import random
+from pathlib import Path  # pathlib is a library for handling file paths #Path is a class in pathlib
+
 from arc.utils.seeding import set_seed
 
 '''
@@ -16,6 +18,24 @@ def load_task(path):
     with open(path, 'r') as f:
         return json.load(f)
 
+
+def load_tasks(data_path: str):
+    """Load all tasks from a directory for training."""
+    from pathlib import Path
+    path = Path(data_path)
+    
+    tasks = []
+    if path.is_dir():
+        # Load all JSON files in directory
+        for json_file in path.glob("*.json"):
+            task_dict = load_task(json_file)
+            tasks.append(task_dict)
+    else:
+        # Single file
+        task_dict = load_task(data_path)
+        tasks.append(task_dict)
+    
+    return tasks
 
 
 #iterates over all tasks in the split path (training or evaluation)
