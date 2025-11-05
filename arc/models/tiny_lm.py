@@ -6,16 +6,24 @@ from dataclasses import dataclass
 import torch
 import torch.nn as nn
 
+from arc.utils.constants import MODEL_CONFIG
+
 
 @dataclass
 class TinyLMConfig:
-    vocab_size: int           # How many different tokens exist (from serialization)
-    d_model: int = 448        # Size of the hidden representation (embedding dimension)
-    n_layers: int = 8         # How many transformer blocks to stack
-    n_heads: int = 8          # Number of attention heads in each block
-    d_ff: int = 1792          # Size of the feedforward network (usually 4 × d_model)
-    p_drop: float = 0.1       # Dropout probability (randomly turns off 10% of connections during training)
-    max_len: int = 4096       # 2048 # 4096 - 2 pairs of example # Maximum sequence length the model can handle
+    vocab_size: int = MODEL_CONFIG['vocab_size']        # How many different tokens exist (from serialization)
+    d_model: int = MODEL_CONFIG['d_model']              # Size of the hidden representation (embedding dimension)
+    n_layers: int = MODEL_CONFIG['n_layers']            # How many transformer blocks to stack
+    n_heads: int = MODEL_CONFIG['n_heads']              # Number of attention heads in each block
+    d_ff: int = MODEL_CONFIG['d_ff']                    # Size of the feedforward network (usually 4 × d_model)
+    p_drop: float = MODEL_CONFIG['p_drop']              # Dropout probability (randomly turns off 10% of connections during training)
+    max_len: int = MODEL_CONFIG['max_len']              # Maximum sequence length the model can handle
+    
+#  Model size estimates: d_model n_layers n_heads d_ff Params
+# ~20M 448 8 8 1792 20.2M
+# ~30M 512 10 8 2048 32.5M
+# ~50M 640 10 8 2560 50.5M
+
     
 class CausalSelfAttention(nn.Module):
     def __init__(self, cfg: TinyLMConfig):
