@@ -6,6 +6,34 @@ This repository contains the ARC-AGI-2 task data (ARC-AGI-1 can be found [here](
 
 A foundational description of the dataset, its goals, and its underlying logic, can be found in: [On the Measure of Intelligence](https://arxiv.org/abs/1911.01547), the [ARC-AGI-2 Presentation](https://docs.google.com/presentation/d/1hQrGh5YI6MK3PalQYSQs4CQERrYBQZue8PBLjjHIMgI/edit?usp=sharing) and [ARC-AGI-2 Technical Report](http://arcprize.org/blog/arc-agi-2-technical-report)
 
+## Installation & Requirements
+
+### Local Development
+```bash
+# Clone the repository
+git clone https://github.com/your-username/ARC-AGI-2.git
+cd ARC-AGI-2
+
+# Install dependencies (exact versions from conda environment)
+pip install -r requirements.txt
+
+# Install the package in development mode
+pip install -e .
+```
+
+### Google Colab
+For Google Colab usage, see [COLAB_SETUP.md](COLAB_SETUP.md) for detailed instructions and copy-paste installation commands.
+
+### Key Dependencies
+- **PyTorch**: 2.2.2 (with TorchVision 0.17.2, TorchAudio 2.2.2)
+- **NumPy**: 1.24.4 (compatible with all PyTorch ecosystem)
+- **Scientific Computing**: Pandas 2.0.3, SciPy 1.10.1, Scikit-learn 1.3.2
+- **Visualization**: Matplotlib 3.7.5, Seaborn 0.13.2, Plotly 6.4.0
+- **Transformers**: 4.46.3 with Hugging Face Hub 0.36.0
+- **Jupyter**: Complete Jupyter ecosystem for notebook development
+
+All versions are pinned for reproducibility across different environments.
+
 ## Dataset composition
 
 ARC-AGI-2 contains 1,000 public training tasks and 120 public evaluation tasks.
