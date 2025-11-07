@@ -146,7 +146,7 @@ def train(model_dir: str, data_path: str,
             x,y = x.to(device), y.to(device)
             
             with torch.cuda.amp.autocast(enabled=(device=='cuda' and train_config['use_amp'])):
-                logits, = model(x)
+                logits = model(x)
                 loss = loss_fn(logits.view(-1, logits.size(-1)), y.view(-1))
                 # Scale loss by accumulation steps for proper averaging
                 loss = loss / grad_accum_steps
