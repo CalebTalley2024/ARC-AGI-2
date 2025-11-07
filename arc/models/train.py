@@ -13,7 +13,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from arc.io.loader import load_task  # implement JSON loader
+from arc.io.loader import load_task, load_tasks  # implement JSON loader
 from arc.models.tiny_lm import TinyLM, TinyLMConfig
 from arc.serialize.task_tokenizer import pack_example
 from arc.utils.constants import (MODEL_CONFIG, PAD, TRAINING_CONFIG,
@@ -104,7 +104,7 @@ def train(model_dir: str, data_path: str,
     print(f"Model config: d_model={model_config['d_model']}, n_layers={model_config['n_layers']}")
     
     # Load data and create dataset
-    tasks = load_task(data_path)  # returns List[Task]
+    tasks = load_tasks(data_path)  # returns List[Task]
     ds = ArcPairsDataset(tasks, 
                         mode=train_config['serialization_mode'], 
                         max_len=train_config['max_sequence_length'])
