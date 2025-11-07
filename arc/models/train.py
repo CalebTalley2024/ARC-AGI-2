@@ -28,9 +28,16 @@ class ArcPairsDataset(Dataset):
         mode = mode or TRAINING_CONFIG['serialization_mode']
         max_len = max_len or TRAINING_CONFIG['max_sequence_length']
         
-        for t in tasks:
-            for ex in t.train:
-                seq = pack_example(ex.x, ex.y, mode)
+        for task_dict in tasks:
+            # Access 'train' key from task dictionary
+            for example in task_dict['train']:
+                # Convert lists to Grid objects
+                from arc.grids.core import Grid
+                input_grid = Grid(np.array(example['input'], dtype=np.int8))
+                output_grid = Grid(np.array(example['output'], dtype=np.int8))
+                
+                # Convert to token sequence
+                seq = pack_example(input_grid, output_grid, mode)
                 if len(seq) <= max_len:
                     self.examples.append(seq)
         random.shuffle(self.examples)
