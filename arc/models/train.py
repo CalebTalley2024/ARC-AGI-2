@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 import math
 import random
+import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
 
@@ -19,6 +21,55 @@ from arc.serialize.task_tokenizer import pack_example
 from arc.utils.constants import (MODEL_CONFIG, PAD, TRAINING_CONFIG,
                                  VOCAB_SIZE, get_model_config,
                                  get_training_config)
+
+
+def setup_drive_backup(drive_backup_path: str) -> bool:
+    """Setup Google Drive backup directory and check accessibility."""
+    try:
+        # Check if Google Drive is mounted (Colab environment)
+        drive_path = Path(drive_backup_path)
+        if not drive_path.parent.exists():
+            print("Google Drive not mounted or path not accessible. Skipping Drive backup.")
+            return False
+        
+        # Create backup directories
+        drive_path.mkdir(parents=True, exist_ok=True)
+        (drive_path / "best_checkpoints").mkdir(exist_ok=True)
+        (drive_path / "backup_history").mkdir(exist_ok=True)
+        
+        print(f"Google Drive backup setup at: {drive_path}")
+        return True
+    except Exception as e:
+        print(f"Failed to setup Google Drive backup: {e}")
+        return False
+
+
+def backup_checkpoint_to_drive(checkpoint_path: Path, drive_backup_path: str) -> bool:
+    """Backup a checkpoint to Google Drive."""
+    try:
+        if not checkpoint_path.exists():
+            return False
+        
+        drive_path = Path(drive_backup_path)
+        
+        # Current backup location
+        current_backup = drive_path / "best_checkpoints" / "best.pt"
+        
+        # Timestamped backup in history
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        history_backup = drive_path / "backup_history" / f"best_{timestamp}.pt"
+        
+        # Copy to both locations
+        shutil.copy2(checkpoint_path, current_backup)
+        shutil.copy2(checkpoint_path, history_backup)
+        
+        file_size_mb = checkpoint_path.stat().st_size / (1024 * 1024)
+        print(f"Checkpoint backed up to Drive ({file_size_mb:.1f} MB)")
+        return True
+        
+    except Exception as e:
+        print(f"Failed to backup to Drive: {e}")
+        return False
 
 
 class ArcPairsDataset(Dataset):
@@ -68,9 +119,10 @@ class Collate:
 def train(model_dir: str, data_path: str, 
           steps: int | None = None, bs: int | None = None, lr: float | None = None, 
           d_model: int | None = None, training_profile: str | None = None, model_size: str | None = None,
-          resume_from_checkpoint: bool = True):
+          resume_from_checkpoint: bool = True, enable_drive_backup: bool = True, 
+          drive_backup_path: str = "/content/drive/MyDrive/ARC_AGI_Checkpoints"):
     """
-    Train TinyLM model with centralized configuration management.
+    Train TinyLM model with centralized configuration management and Google Drive backup.
     
     Args:
         model_dir: Directory to save model checkpoints
@@ -82,11 +134,22 @@ def train(model_dir: str, data_path: str,
         training_profile: Use predefined training profile ('debug', 'small_gpu', etc.)
         model_size: Use predefined model size ('tiny', 'small', 'medium', 'large')
         resume_from_checkpoint: Whether to resume from existing best.pt checkpoint if available
+        enable_drive_backup: Whether to automatically backup checkpoints to Google Drive
+        drive_backup_path: Google Drive path for checkpoint backups
     """
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print("*" * 20)
     print(f"Using device: {device}")
     print("*" * 20)
+    
+    # Setup Google Drive backup if enabled
+    drive_backup_enabled = False
+    if enable_drive_backup:
+        drive_backup_enabled = setup_drive_backup(drive_backup_path)
+        if drive_backup_enabled:
+            print("✓ Google Drive automatic backup enabled")
+        else:
+            print("⚠ Google Drive backup disabled - training will continue without cloud backup")
     
     # Get configurations
     if training_profile:
@@ -127,7 +190,7 @@ def train(model_dir: str, data_path: str,
     opt = torch.optim.AdamW(model.parameters(), lr=lr, 
                            betas=train_config['betas'], 
                            weight_decay=train_config['weight_decay'])
-    scaler = torch.cuda.amp.GradScaler(enabled=(device=='cuda' and train_config['use_amp']))
+    scaler = torch.amp.GradScaler(device, enabled=(device=='cuda' and train_config['use_amp']))
     loss_fn = nn.CrossEntropyLoss(ignore_index=train_config['ignore_index'])
 
     # Best model tracking and checkpoint resuming
@@ -197,7 +260,7 @@ def train(model_dir: str, data_path: str,
                 it = iter(dl); x,y = next(it)
             x,y = x.to(device), y.to(device)
             
-            with torch.cuda.amp.autocast(enabled=(device=='cuda' and train_config['use_amp'])):
+            with torch.amp.autocast(device, enabled=(device=='cuda' and train_config['use_amp'])):
                 logits = model(x)
                 loss = loss_fn(logits.view(-1, logits.size(-1)), y.view(-1))
                 # Scale loss by accumulation steps for proper averaging
@@ -230,7 +293,15 @@ def train(model_dir: str, data_path: str,
                 'training_config': train_config,
                 'model_config': model_config
             }
-            torch.save(checkpoint_dict, out/"best.pt")
+            
+            # Save local checkpoint
+            best_checkpoint_path = out / "best.pt"
+            torch.save(checkpoint_dict, best_checkpoint_path)
+            
+            # Automatically backup to Google Drive if enabled
+            if drive_backup_enabled:
+                backup_checkpoint_to_drive(best_checkpoint_path, drive_backup_path)
+            
             pbar.set_description(f"loss={total_loss:.3f} ★NEW BEST★ (step {step})")
         
         if (step+1) % train_config['save_every'] == 0:
@@ -263,4 +334,24 @@ def train(model_dir: str, data_path: str,
         'model_config': model_config,
         'training_completed': True
     }
-    torch.save(final_checkpoint, out/"final.pt")
+    final_checkpoint_path = out / "final.pt"
+    torch.save(final_checkpoint, final_checkpoint_path)
+    
+    # Final backup to Google Drive if enabled
+    if drive_backup_enabled:
+        print("Performing final backup to Google Drive...")
+        backup_checkpoint_to_drive(out / "best.pt", drive_backup_path)
+        
+        # Also backup final checkpoint to history
+        try:
+            drive_path = Path(drive_backup_path)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            final_backup = drive_path / "backup_history" / f"final_{timestamp}.pt"
+            shutil.copy2(final_checkpoint_path, final_backup)
+            print(f"✓ Final checkpoint backed up: {final_backup}")
+        except Exception as e:
+            print(f"⚠ Failed to backup final checkpoint: {e}")
+    
+    print("Training completed!")
+    if drive_backup_enabled:
+        print(f"✓ All checkpoints backed up to: {drive_backup_path}")
