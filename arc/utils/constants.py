@@ -95,7 +95,7 @@ TRAINING_CONFIG = {
     'steps': 100_000,           # Total training steps
     'batch_size': 32,           # Batch size
     'learning_rate': 3e-4,      # Learning rate
-    'max_sequence_length': 4096, # Max sequence length for dataset filtering (matches default model max_len)
+    # 'max_sequence_length': 4096, # Max sequence length for dataset filtering (matches default model max_len)
     
     # Optimizer parameters
     'betas': (0.9, 0.95),       # Adam beta parameters
@@ -134,15 +134,15 @@ TRAINING_CONFIGS = {
     },
     'medium_gpu': { # For 8-16GB GPU memory (RTX 3070, RTX 4060 Ti, etc.)
         **TRAINING_CONFIG,
-        'batch_size': 16,
-        'grad_accumulation_steps': 2,  # Effective batch size = 32
-        'max_sequence_length': 4096,   # Matches 'small'/'medium'/'large' model max_len
+        'batch_size': 8,
+        'grad_accumulation_steps': 4,  # Effective batch size = 32
+        'max_sequence_length': 2048,   # Reduced for memory efficiency
     },
     'large_gpu': {  # For 16GB+ GPU memory (RTX 3080, RTX 4080, A100, etc.)
         **TRAINING_CONFIG,
-        'batch_size': 32,
-        'grad_accumulation_steps': 1,  # No accumulation needed with large GPU
-        'max_sequence_length': 4096,   # Matches 'small'/'medium'/'large' model max_len
+        'batch_size': 12,
+        'grad_accumulation_steps': 3,  # Effective batch size = 36, close to 32
+        'max_sequence_length': 4096,   # Full length for large GPUs
     },
 }
 

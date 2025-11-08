@@ -67,7 +67,8 @@ class Collate:
 # def train(..., bs: int = 8, grad_accum_steps: int = 4): for 4096
 def train(model_dir: str, data_path: str, 
           steps: int | None = None, bs: int | None = None, lr: float | None = None, 
-          d_model: int | None = None, training_profile: str | None = None, model_size: str | None = None):
+          d_model: int | None = None, training_profile: str | None = None, model_size: str | None = None,
+          resume_from_checkpoint: bool = True):
     """
     Train TinyLM model with centralized configuration management.
     
@@ -80,6 +81,7 @@ def train(model_dir: str, data_path: str,
         d_model: Model dimension (uses MODEL_CONFIG default if None)
         training_profile: Use predefined training profile ('debug', 'small_gpu', etc.)
         model_size: Use predefined model size ('tiny', 'small', 'medium', 'large')
+        resume_from_checkpoint: Whether to resume from existing best.pt checkpoint if available
     """
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print("*" * 20)
@@ -128,12 +130,62 @@ def train(model_dir: str, data_path: str,
     scaler = torch.cuda.amp.GradScaler(enabled=(device=='cuda' and train_config['use_amp']))
     loss_fn = nn.CrossEntropyLoss(ignore_index=train_config['ignore_index'])
 
-    # Best model tracking
+    # Best model tracking and checkpoint resuming
     best_loss = float('inf')
+    start_step = 0
+    
+    # Check for existing checkpoint to resume from
+    checkpoint_path = Path(model_dir) / "best.pt"
+    if resume_from_checkpoint and checkpoint_path.exists():
+        print(f"Found existing checkpoint: {checkpoint_path}")
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location=device)
+            
+            # Load model state
+            model.load_state_dict(checkpoint['model'])
+            print(f"Loaded model state from checkpoint")
+            
+            # Load best loss if available
+            if 'loss' in checkpoint:
+                best_loss = checkpoint['loss']
+                print(f"Resuming with best loss: {best_loss:.4f}")
+            
+            # Load optimizer state if available
+            if 'optimizer' in checkpoint:
+                opt.load_state_dict(checkpoint['optimizer'])
+                print(f"Loaded optimizer state from checkpoint")
+            
+            # Load scaler state if available
+            if 'scaler' in checkpoint:
+                scaler.load_state_dict(checkpoint['scaler'])
+                print(f"Loaded scaler state from checkpoint")
+            
+            # Load training step if available
+            if 'step' in checkpoint:
+                start_step = checkpoint['step'] + 1
+                print(f"Resuming from step: {start_step}")
+            
+            print("Successfully resumed from checkpoint!")
+            
+        except Exception as e:
+            print(f"Error loading checkpoint: {e}")
+            print("Starting training from scratch...")
+            best_loss = float('inf')
+            start_step = 0
+    else:
+        if resume_from_checkpoint:
+            print(f"No checkpoint found at {checkpoint_path}, starting from scratch")
+        else:
+            print("Resume disabled, starting from scratch")
     
     it = iter(dl)
-    pbar = tqdm(range(steps), total=steps)
-    for step in pbar:
+    # Adjust range to account for resumed training
+    remaining_steps = steps - start_step
+    pbar = tqdm(range(remaining_steps), total=remaining_steps, initial=0)
+    pbar.set_description(f"Starting from step {start_step}")
+    
+    for step_idx in pbar:
+        step = start_step + step_idx  # Actual step number
         # Gradient accumulation loop
         total_loss = 0.0
         opt.zero_grad(set_to_none=True)
@@ -166,13 +218,49 @@ def train(model_dir: str, data_path: str,
         if total_loss < best_loss:
             best_loss = total_loss
             out = Path(model_dir); out.mkdir(parents=True, exist_ok=True)
-            torch.save({'model': model.state_dict(), 'cfg': cfg.__dict__, 'loss': best_loss}, out/"best.pt")
-            pbar.set_description(f"loss={total_loss:.3f} ★NEW BEST★")
+            # Save comprehensive checkpoint for resuming
+            checkpoint_dict = {
+                'model': model.state_dict(),
+                'cfg': cfg.__dict__,
+                'loss': best_loss,
+                'step': step,
+                'optimizer': opt.state_dict(),
+                'scaler': scaler.state_dict(),
+                'lr': lr,
+                'training_config': train_config,
+                'model_config': model_config
+            }
+            torch.save(checkpoint_dict, out/"best.pt")
+            pbar.set_description(f"loss={total_loss:.3f} ★NEW BEST★ (step {step})")
         
         if (step+1) % train_config['save_every'] == 0:
             out = Path(model_dir); out.mkdir(parents=True, exist_ok=True)
-            torch.save({'model': model.state_dict(), 'cfg': cfg.__dict__}, out/f"ckpt_{step+1}.pt")
+            # Save regular checkpoint with full state
+            checkpoint_dict = {
+                'model': model.state_dict(),
+                'cfg': cfg.__dict__,
+                'loss': total_loss,
+                'step': step,
+                'optimizer': opt.state_dict(),
+                'scaler': scaler.state_dict(),
+                'lr': lr,
+                'training_config': train_config,
+                'model_config': model_config
+            }
+            torch.save(checkpoint_dict, out/f"ckpt_{step+1}.pt")
     
     # final save
     out = Path(model_dir); out.mkdir(parents=True, exist_ok=True)
-    torch.save({'model': model.state_dict(), 'cfg': cfg.__dict__}, out/"final.pt")
+    final_checkpoint = {
+        'model': model.state_dict(),
+        'cfg': cfg.__dict__,
+        'loss': total_loss,
+        'step': step,
+        'optimizer': opt.state_dict(),
+        'scaler': scaler.state_dict(),
+        'lr': lr,
+        'training_config': train_config,
+        'model_config': model_config,
+        'training_completed': True
+    }
+    torch.save(final_checkpoint, out/"final.pt")
