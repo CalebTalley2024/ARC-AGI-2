@@ -33,7 +33,7 @@ NUM_COLORS = 10         # Number of possible colors (0-9)
 # MODEL ARCHITECTURE CONSTANTS
 # ============================================================================
 
-# TinyLM Model Configuration (default: small size, ~21M parameters)
+# TinyLM Model Configuration (default: small size, ~20.3M parameters)
 MODEL_CONFIG = {
     'vocab_size': VOCAB_SIZE,
     'd_model': 448,         # Hidden dimension size
@@ -41,7 +41,7 @@ MODEL_CONFIG = {
     'n_heads': 8,           # Number of attention heads
     'd_ff': 1792,           # Feedforward dimension (4 * d_model)
     'p_drop': 0.1,          # Dropout probability
-    'max_len': 4096,        # Maximum sequence length
+    'max_len': 2048,        # Maximum sequence length
 }
 
 # Alternative model sizes for experimentation
@@ -55,25 +55,25 @@ MODEL_CONFIGS = {
         'p_drop': 0.1,
         'max_len': 2048,
     },
-    'small': {   # ~21M parameters, ~81 MB, good balance for training
+    'small': {   # ~20.3M parameters, ~77 MB, good balance for training
         'vocab_size': VOCAB_SIZE,
         'd_model': 448,
         'n_layers': 8,
         'n_heads': 8,
         'd_ff': 1792,
         'p_drop': 0.1,
-        'max_len': 4096,
+        'max_len': 2048,
     },
-    'medium': {  # ~34M parameters, ~128 MB, requires decent GPU memory
+    'medium': {  # ~32.6M parameters, ~124 MB, requires decent GPU memory
         'vocab_size': VOCAB_SIZE,
         'd_model': 512,
         'n_layers': 10,
         'n_heads': 8,
         'd_ff': 2048,
         'p_drop': 0.1,
-        'max_len': 4096,
+        'max_len': 2048,
     },
-    'large': {   # ~52M parameters, ~198 MB, requires high-end GPU
+    'large': {   # ~51.9M parameters, ~198 MB, requires high-end GPU
         'vocab_size': VOCAB_SIZE,
         'd_model': 640,
         'n_layers': 10,
@@ -95,7 +95,7 @@ TRAINING_CONFIG = {
     'steps': 100_000,           # Total training steps
     'batch_size': 32,           # Batch size
     'learning_rate': 3e-4,      # Learning rate
-    # 'max_sequence_length': 4096, # Max sequence length for dataset filtering (matches default model max_len)
+    # 'max_sequence_length': 2048, # Max sequence length for dataset filtering (matches default model max_len)
     
     # Optimizer parameters
     'betas': (0.9, 0.95),       # Adam beta parameters
@@ -130,7 +130,7 @@ TRAINING_CONFIGS = {
         **TRAINING_CONFIG,
         'batch_size': 8,
         'grad_accumulation_steps': 4,  # Effective batch size = 32
-        'max_sequence_length': 2048,   # Matches 'tiny' model max_len
+        'max_sequence_length': 2048,   # Matches tiny/small/medium model max_len
     },
     'medium_gpu': { # For 8-16GB GPU memory (RTX 3070, RTX 4060 Ti, etc.)
         **TRAINING_CONFIG,
