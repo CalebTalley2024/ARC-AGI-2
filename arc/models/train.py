@@ -120,7 +120,8 @@ def train(model_dir: str, data_path: str,
           steps: int | None = None, bs: int | None = None, lr: float | None = None, 
           d_model: int | None = None, training_profile: str | None = None, model_size: str | None = None,
           resume_from_checkpoint: bool = True, enable_drive_backup: bool = True, 
-          drive_backup_path: str = "/content/drive/MyDrive/ARC_AGI_Checkpoints"):
+          drive_backup_path: str = "/content/drive/MyDrive/ARC_AGI_Checkpoints",
+          enable_lr_scheduling: bool = True, patience: int = 1000, lr_reduction_factor: float = 0.5):
     """
     Train TinyLM model with centralized configuration management and Google Drive backup.
     
@@ -136,6 +137,9 @@ def train(model_dir: str, data_path: str,
         resume_from_checkpoint: Whether to resume from existing best.pt checkpoint if available
         enable_drive_backup: Whether to automatically backup checkpoints to Google Drive
         drive_backup_path: Google Drive path for checkpoint backups
+        enable_lr_scheduling: Whether to enable adaptive learning rate scheduling
+        patience: Number of steps to wait before reducing LR when loss plateaus
+        lr_reduction_factor: Factor to multiply LR by when reducing (e.g., 0.5 = half the LR)
     """
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print("*" * 20)
@@ -167,6 +171,13 @@ def train(model_dir: str, data_path: str,
     bs = bs or train_config['batch_size']
     lr = lr or train_config['learning_rate']
     grad_accum_steps = train_config['grad_accumulation_steps']
+    
+    # Get LR scheduling parameters from config with function parameter overrides
+    if enable_lr_scheduling is True:  # Only use config if user didn't override
+        enable_lr_scheduling = train_config.get('lr_scheduling_enabled', True)
+    patience = train_config.get('lr_patience', patience)
+    lr_reduction_factor = train_config.get('lr_reduction_factor', lr_reduction_factor)
+    
     if d_model:
         model_config['d_model'] = d_model
     
@@ -174,6 +185,11 @@ def train(model_dir: str, data_path: str,
     print(f"Training config: steps={steps}, batch_size={bs}, lr={lr}")
     print(f"Gradient accumulation: {grad_accum_steps} steps, effective_batch_size={effective_batch_size}")
     print(f"Model config: d_model={model_config['d_model']}, n_layers={model_config['n_layers']}")
+    
+    if enable_lr_scheduling:
+        print(f"LR Scheduling: enabled (patience={patience}, reduction_factor={lr_reduction_factor})")
+    else:
+        print("LR Scheduling: disabled")
     
     # Load data and create dataset
     tasks = load_tasks(data_path)  # returns List[Task]
@@ -193,6 +209,14 @@ def train(model_dir: str, data_path: str,
     scaler = torch.amp.GradScaler(device, enabled=(device=='cuda' and train_config['use_amp']))
     loss_fn = nn.CrossEntropyLoss(ignore_index=train_config['ignore_index'])
 
+    # Learning rate scheduling setup
+    current_lr = lr
+    steps_without_improvement = 0
+    last_improvement_step = 0
+    min_lr = lr * train_config.get('min_lr_factor', 0.01)  # Don't reduce LR below min factor
+    lr_reductions = 0
+    max_lr_reductions = train_config.get('max_lr_reductions', 5)
+    
     # Best model tracking and checkpoint resuming
     best_loss = float('inf')
     start_step = 0
@@ -227,6 +251,19 @@ def train(model_dir: str, data_path: str,
             if 'step' in checkpoint:
                 start_step = checkpoint['step'] + 1
                 print(f"Resuming from step: {start_step}")
+            
+            # Load learning rate scheduling state if available
+            if 'lr_scheduling' in checkpoint:
+                lr_sched = checkpoint['lr_scheduling']
+                current_lr = lr_sched.get('current_lr', lr)
+                steps_without_improvement = lr_sched.get('steps_without_improvement', 0)
+                last_improvement_step = lr_sched.get('last_improvement_step', 0)
+                lr_reductions = lr_sched.get('lr_reductions', 0)
+                
+                # Update optimizer learning rate
+                for param_group in opt.param_groups:
+                    param_group['lr'] = current_lr
+                print(f"Resumed LR scheduling: current_lr={current_lr:.6f}, reductions={lr_reductions}")
             
             print("Successfully resumed from checkpoint!")
             
@@ -280,6 +317,9 @@ def train(model_dir: str, data_path: str,
         # Save best model if current loss is better
         if total_loss < best_loss:
             best_loss = total_loss
+            last_improvement_step = step
+            steps_without_improvement = 0
+            
             out = Path(model_dir); out.mkdir(parents=True, exist_ok=True)
             # Save comprehensive checkpoint for resuming
             checkpoint_dict = {
@@ -289,9 +329,15 @@ def train(model_dir: str, data_path: str,
                 'step': step,
                 'optimizer': opt.state_dict(),
                 'scaler': scaler.state_dict(),
-                'lr': lr,
+                'lr': current_lr,  # Save current LR instead of original
                 'training_config': train_config,
-                'model_config': model_config
+                'model_config': model_config,
+                'lr_scheduling': {  # Save LR scheduling state
+                    'current_lr': current_lr,
+                    'steps_without_improvement': steps_without_improvement,
+                    'last_improvement_step': last_improvement_step,
+                    'lr_reductions': lr_reductions
+                }
             }
             
             # Save local checkpoint
@@ -302,7 +348,30 @@ def train(model_dir: str, data_path: str,
             if drive_backup_enabled:
                 backup_checkpoint_to_drive(best_checkpoint_path, drive_backup_path)
             
-            pbar.set_description(f"loss={total_loss:.3f} ★NEW BEST★ (step {step})")
+            pbar.set_description(f"loss={total_loss:.3f} ★NEW BEST★ (step {step}) lr={current_lr:.6f}")
+        else:
+            # Update steps without improvement for LR scheduling
+            steps_without_improvement = step - last_improvement_step
+        
+        # Learning rate scheduling - reduce LR if no improvement for patience steps
+        if (enable_lr_scheduling and 
+            steps_without_improvement >= patience and 
+            lr_reductions < max_lr_reductions and 
+            current_lr > min_lr):
+            
+            # Reduce learning rate
+            new_lr = current_lr * lr_reduction_factor
+            current_lr = max(new_lr, min_lr)  # Don't go below minimum LR
+            
+            # Update optimizer learning rate
+            for param_group in opt.param_groups:
+                param_group['lr'] = current_lr
+            
+            lr_reductions += 1
+            steps_without_improvement = 0  # Reset counter after LR reduction
+            
+            print(f"\n🔄 LR REDUCED: {new_lr:.6f} → {current_lr:.6f} (reduction #{lr_reductions}/{max_lr_reductions})")
+            pbar.set_description(f"loss={total_loss:.3f} 📉LR REDUCED📉 lr={current_lr:.6f}")
         
         if (step+1) % train_config['save_every'] == 0:
             out = Path(model_dir); out.mkdir(parents=True, exist_ok=True)
@@ -314,9 +383,15 @@ def train(model_dir: str, data_path: str,
                 'step': step,
                 'optimizer': opt.state_dict(),
                 'scaler': scaler.state_dict(),
-                'lr': lr,
+                'lr': current_lr,  # Save current LR
                 'training_config': train_config,
-                'model_config': model_config
+                'model_config': model_config,
+                'lr_scheduling': {  # Save LR scheduling state
+                    'current_lr': current_lr,
+                    'steps_without_improvement': steps_without_improvement,
+                    'last_improvement_step': last_improvement_step,
+                    'lr_reductions': lr_reductions
+                }
             }
             torch.save(checkpoint_dict, out/f"ckpt_{step+1}.pt")
     
@@ -329,10 +404,16 @@ def train(model_dir: str, data_path: str,
         'step': step,
         'optimizer': opt.state_dict(),
         'scaler': scaler.state_dict(),
-        'lr': lr,
+        'lr': current_lr,  # Save final LR
         'training_config': train_config,
         'model_config': model_config,
-        'training_completed': True
+        'training_completed': True,
+        'lr_scheduling': {  # Save final LR scheduling state
+            'current_lr': current_lr,
+            'steps_without_improvement': steps_without_improvement,
+            'last_improvement_step': last_improvement_step,
+            'lr_reductions': lr_reductions
+        }
     }
     final_checkpoint_path = out / "final.pt"
     torch.save(final_checkpoint, final_checkpoint_path)

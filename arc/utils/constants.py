@@ -114,6 +114,13 @@ TRAINING_CONFIG = {
     # Mixed precision training
     'use_amp': True,            # Use automatic mixed precision
     'grad_accumulation_steps': 4, # Gradient accumulation steps
+    
+    # Learning rate scheduling
+    'lr_scheduling_enabled': True,    # Enable adaptive LR scheduling
+    'lr_patience': 1000,               # Steps to wait before reducing LR
+    'lr_reduction_factor': 0.5,      # Factor to multiply LR by when reducing
+    'min_lr_factor': 0.01,           # Minimum LR as fraction of original LR
+    'max_lr_reductions': 5,          # Maximum number of LR reductions
 }
 
 # GPU memory optimized configs
