@@ -5,6 +5,14 @@ This file contains all model hyperparameters, training constants, and tokenizati
 constants to enable easy configuration management and experimentation.
 """
 
+
+# ============================================================================
+# TOKENIZATION CONSTANTS
+# ============================================================================
+
+D4 = ['id','rot90','rot180','rot270','flip_h','flip_v','transpose','transpose_flip','flip_transpose']
+
+
 # ============================================================================
 # TOKENIZATION CONSTANTS
 # ============================================================================
@@ -114,13 +122,6 @@ TRAINING_CONFIG = {
     # Mixed precision training
     'use_amp': True,            # Use automatic mixed precision
     'grad_accumulation_steps': 4, # Gradient accumulation steps
-    
-    # Learning rate scheduling
-    'lr_scheduling_enabled': True,    # Enable adaptive LR scheduling
-    'lr_patience': 1000,               # Steps to wait before reducing LR
-    'lr_reduction_factor': 0.5,      # Factor to multiply LR by when reducing
-    'min_lr_factor': 0.01,           # Minimum LR as fraction of original LR
-    'max_lr_reductions': 5,          # Maximum number of LR reductions
 }
 
 # GPU memory optimized configs
@@ -166,6 +167,49 @@ DATA_CONFIG = {
     'shuffle_dataset': True,
     'drop_last_batch': True,
 }
+
+
+# ============================================================================
+# DATA AUGMENTATION CONFIGURATION
+# ============================================================================
+
+# Augmentation configuration
+# Dictionary mapping augmentation strategies to their probabilities
+# Supported modes:
+#   - 'random': Random mix of geometric and color augmentations (set probability for this mode)
+#   - 'None': No augmentation (identity transform) (set probability for no augmentation)
+#   - 'specific': Dictionary of specific augmentation types with individual probabilities
+#       * 'geometric': All geometric transforms (rotation, flip, transpose)
+#       * 'color': Color permutations only
+#       * 'rotation': Rotation transforms only (90, 180, 270)
+#       * 'flip': Flip transforms only (horizontal, vertical)
+#       * 'transpose': Transpose variations only
+AUGMENTATION_CONFIG = {
+    'random': 0.0,      # Probability of random augmentation (mix of all types)
+    'None': 1.0,        # Probability of no augmentation (identity)
+    'specific': {       # Specific augmentation types with individual probabilities
+        'geometric': 0.0,   # All geometric transforms
+        'color': 0.0,       # Color permutations
+        'rotation': 0.0,    # Rotation only
+        'flip': 0.0,        # Flip only
+        'transpose': 0.0,   # Transpose only
+    }
+}
+
+# Example configurations:
+# 1. No augmentation (default):
+#    {'random': 0.0, 'None': 1.0, 'specific': {...all 0.0}}
+#
+# 2. 50% random augmentation, 50% no augmentation:
+#    {'random': 0.5, 'None': 0.5, 'specific': {...all 0.0}}
+#
+# 3. Mix of specific augmentations:
+#    {'random': 0.0, 'None': 0.3, 'specific': {'geometric': 0.3, 'color': 0.4, ...}}
+#
+# 4. Only geometric augmentations:
+#    {'random': 0.0, 'None': 0.2, 'specific': {'geometric': 0.8, 'color': 0.0, ...}}
+#
+# Note: Probabilities across all modes should sum to 1.0 for proper sampling
 
 # Sequence length analysis thresholds
 SEQUENCE_ANALYSIS = {
