@@ -1,11 +1,14 @@
 # models/train.py
+"""
+Main training script for TinyLM model on ARC-AGI tasks.
+
+This module provides the training loop and dataset implementation,
+with augmentation and backup functionality imported from separate modules.
+"""
+
 from __future__ import annotations
 
-import json
-import math
 import random
-import shutil
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
 
@@ -16,318 +19,141 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from arc.grids.core import Grid
-from arc.grids.views import (D4, ViewSpec, apply_view_grid,
-                             generate_palette_permutations, identity_cmap)
-from arc.io.loader import load_tasks  # implement JSON loader
+from arc.io.loader import load_tasks
+from arc.models.augmentation import (apply_augmentation_to_example,
+                                     is_augmentation_enabled,
+                                     sample_augmentation_type)
+from arc.models.backup import (backup_checkpoint_to_drive,
+                               backup_final_checkpoint, setup_drive_backup)
 from arc.models.tiny_lm import TinyLM, TinyLMConfig
 from arc.serialize.task_tokenizer import pack_example
-from arc.utils.constants import (AUGMENTATION_CONFIG, D4, MODEL_CONFIG,
+from arc.utils.constants import (AUGMENTATION_CONFIG, MODEL_CONFIG,
                                  TRAINING_CONFIG, VOCAB_SIZE, get_model_config,
                                  get_training_config)
 
 
-def setup_drive_backup(drive_backup_path: str) -> bool:
-    """Setup Google Drive backup directory and check accessibility."""
-    try:
-        # Check if Google Drive is mounted (Colab environment)
-        drive_path = Path(drive_backup_path)
-        if not drive_path.parent.exists():
-            print("Google Drive not mounted or path not accessible. Skipping Drive backup.")
-            return False
-        
-        # Create backup directories
-        drive_path.mkdir(parents=True, exist_ok=True)
-        (drive_path / "best_checkpoints").mkdir(exist_ok=True)
-        (drive_path / "backup_history").mkdir(exist_ok=True)
-        
-        print(f"Google Drive backup setup at: {drive_path}")
-        return True
-    except Exception as e:
-        print(f"Failed to setup Google Drive backup: {e}")
-        return False
-
-
-def backup_checkpoint_to_drive(checkpoint_path: Path, drive_backup_path: str) -> bool:
-    """Backup a checkpoint to Google Drive."""
-    try:
-        if not checkpoint_path.exists():
-            return False
-        
-        drive_path = Path(drive_backup_path)
-        
-        # Current backup location
-        current_backup = drive_path / "best_checkpoints" / "best.pt"
-        
-        # Timestamped backup in history
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        history_backup = drive_path / "backup_history" / f"best_{timestamp}.pt"
-        
-        # Copy to both locations
-        shutil.copy2(checkpoint_path, current_backup)
-        shutil.copy2(checkpoint_path, history_backup)
-        
-        file_size_mb = checkpoint_path.stat().st_size / (1024 * 1024)
-        print(f"Checkpoint backed up to Drive ({file_size_mb:.1f} MB)")
-        return True
-        
-    except Exception as e:
-        print(f"Failed to backup to Drive: {e}")
-        return False
-
-
-def get_random_augmentation(palette: set[int] | None = None, augmentation_type: str = 'random', seed: int = 42) -> ViewSpec:
-    """
-    Get a random augmentation ViewSpec based on the specified type.
-    
-    Args:
-        palette: Set of colors used in the task (for color augmentation)
-        augmentation_type: Type of augmentation to apply:
-            - 'random': Randomly choose between geometric and color augmentations
-            - 'geometric': Apply only geometric transformations (rotation, flip, transpose)
-            - 'color': Apply only color permutations
-            - 'identity': No augmentation (identity transform)
-            - 'rotation': Random rotation (90, 180, 270)
-            - 'flip': Random flip (horizontal or vertical)
-            - 'transpose': Transpose variations
-        seed: Random seed for reproducibility
-    
-    Returns:
-        ViewSpec with the selected augmentation
-    """
-    if seed is not None:
-        random.seed(seed)
-        np.random.seed(seed)
-    
-    # Default palette if not provided
-    if palette is None:
-        palette = set(range(10))
-    
-    # Choose augmentation based on type
-    if augmentation_type == 'identity':
-        geom = 'id'
-        color_map = identity_cmap()
-    
-    elif augmentation_type == 'geometric' or augmentation_type == 'random':
-        # Randomly select a geometric transformation
-        geom = random.choice(D4)
-        color_map = identity_cmap()
-        
-        # For 'random' mode, sometimes also apply color permutation
-        if augmentation_type == 'random' and random.random() < 0.5:
-            color_maps = generate_palette_permutations(palette, max_count=8)
-            if len(color_maps) > 1:
-                color_map = random.choice(color_maps)
-    
-    elif augmentation_type == 'rotation' or augmentation_type == 'random':
-        # Only rotation transformations
-        geom = random.choice(['rot90', 'rot180', 'rot270'])
-        color_map = identity_cmap()
-    
-    elif augmentation_type == 'flip' or augmentation_type == 'random':
-        # Only flip transformations
-        geom = random.choice(['flip_h', 'flip_v'])
-        color_map = identity_cmap()
-    
-    elif augmentation_type == 'transpose' or augmentation_type == 'random':
-        # Transpose variations
-        geom = random.choice(['transpose', 'transpose_flip', 'flip_transpose'])
-        color_map = identity_cmap()
-    
-    elif augmentation_type == 'color' or augmentation_type == 'random':
-        # Only color permutations
-        geom = 'id'
-        color_maps = generate_palette_permutations(palette, max_count=8)
-        color_map = random.choice(color_maps) if len(color_maps) > 1 else identity_cmap()
-    
-    else:
-        raise ValueError(f"Unknown augmentation type: {augmentation_type}")
-    
-    return ViewSpec(geom=geom, color_map=color_map, serialization='row')
-
-
-def apply_augmentation_to_example(input_grid: Grid, output_grid: Grid, 
-                                   augmentation_type: str = 'random') -> tuple[Grid, Grid]:
-    """
-    Apply augmentation to a single input-output pair.
-    
-    Args:
-        input_grid: Input grid
-        output_grid: Output grid
-        augmentation_type: Type of augmentation to apply
-    
-    Returns:
-        Tuple of (augmented_input, augmented_output)
-    """
-    # Extract palette from both grids
-    palette = set(np.unique(input_grid.a)) | set(np.unique(output_grid.a))
-    
-    # Get random augmentation
-    view_spec = get_random_augmentation(palette, augmentation_type)
-    
-    # Apply same augmentation to both input and output
-    aug_input = apply_view_grid(input_grid, view_spec)
-    aug_output = apply_view_grid(output_grid, view_spec)
-    
-    return aug_input, aug_output
-
-
 class ArcPairsDataset(Dataset):
+    """
+    Dataset for ARC task pairs with optional data augmentation.
+    
+    Loads task pairs and applies augmentation on-the-fly during training.
+    """
+
     def __init__(self, tasks, mode=None, max_len=None, augmentation_config=None):
         """
-        Dataset for ARC task pairs with optional data augmentation.
-        
+        Initialize ARC pairs dataset.
+
         Args:
             tasks: List of task dictionaries
             mode: Serialization mode ('row' or 'col')
             max_len: Maximum sequence length
-            augmentation_config: Dictionary specifying augmentation strategy
-                Format: {
-                    'random': float,     # Probability of random augmentation
-                    'None': float,       # Probability of no augmentation (identity)
-                    'specific': {        # Specific augmentation types
-                        'geometric': float,
-                        'color': float,
-                        'rotation': float,
-                        'flip': float,
-                        'transpose': float,
-                    }
-                }
-                If None, uses AUGMENTATION_CONFIG from constants
+            augmentation_config: Dictionary specifying augmentation strategy.
+                If None, uses AUGMENTATION_CONFIG from constants.
         """
         self.examples = []
         # Use constants with fallback to function parameters
-        mode = mode or TRAINING_CONFIG['serialization_mode']
-        max_len = max_len or TRAINING_CONFIG['max_sequence_length']
-        
+        mode = mode or TRAINING_CONFIG["serialization_mode"]
+        max_len = max_len or TRAINING_CONFIG["max_sequence_length"]
+
         # Use provided augmentation config or default from constants
         self.augmentation_config = augmentation_config or AUGMENTATION_CONFIG
-        
-        # Check if augmentation is enabled (any non-None probability > 0)
-        self.use_augmentation = (
-            self.augmentation_config.get('random', 0) > 0 or
-            any(prob > 0 for prob in self.augmentation_config.get('specific', {}).values())
-        )
-        
+
+        # Check if augmentation is enabled
+        self.use_augmentation = is_augmentation_enabled(self.augmentation_config)
+
         for task_dict in tasks:
             # Access 'train' key from task dictionary
-            for example in task_dict['train']:
+            for example in task_dict["train"]:
                 # Convert lists to Grid objects
-                input_grid = Grid(np.array(example['input'], dtype=np.int8))
-                output_grid = Grid(np.array(example['output'], dtype=np.int8))
-                
+                input_grid = Grid(np.array(example["input"], dtype=np.int8))
+                output_grid = Grid(np.array(example["output"], dtype=np.int8))
+
                 # Store original grids for augmentation
                 if self.use_augmentation:
                     # Store original grids and generate augmented versions on-the-fly
-                    self.examples.append({
-                        'input': input_grid,
-                        'output': output_grid,
-                        'mode': mode,
-                        'is_augmented': False
-                    })
+                    self.examples.append(
+                        {
+                            "input": input_grid,
+                            "output": output_grid,
+                            "mode": mode,
+                            "is_augmented": False,
+                        }
+                    )
                 else:
                     # Convert to token sequence directly
                     seq = pack_example(input_grid, output_grid, mode)
                     if len(seq) <= max_len:
-                        self.examples.append({'sequence': seq})
-        
+                        self.examples.append({"sequence": seq})
+
         random.shuffle(self.examples)
         self.max_len = max_len
         self.mode = mode
 
-    def _sample_augmentation_type(self) -> str:
-        """Sample augmentation type based on probability distribution."""
-        # Build probability distribution
-        choices = []
-        probs = []
-        
-        # Add 'random' option
-        random_prob = self.augmentation_config.get('random', 0)
-        if random_prob > 0:
-            choices.append('random')
-            probs.append(random_prob)
-        
-        # Add 'None' (identity) option
-        none_prob = self.augmentation_config.get('None', 0)
-        if none_prob > 0:
-            choices.append('identity')
-            probs.append(none_prob)
-        
-        # Add specific augmentation types
-        specific = self.augmentation_config.get('specific', {})
-        for aug_type, prob in specific.items():
-            if prob > 0:
-                choices.append(aug_type)
-                probs.append(prob)
-        
-        # If no choices, return identity
-        if not choices:
-            return 'identity'
-        
-        # Normalize probabilities
-        total = sum(probs)
-        if total > 0:
-            probs = [p / total for p in probs]
-        else:
-            return 'identity'
-        
-        # Sample from distribution
-        return np.random.choice(choices, p=probs)
-
-    def __len__(self): 
+    def __len__(self):
         return len(self.examples)
 
     def __getitem__(self, idx):
         example = self.examples[idx]
-        
-        if self.use_augmentation and 'input' in example:
+
+        if self.use_augmentation and "input" in example:
             # Sample augmentation type based on probability distribution
-            aug_type = self._sample_augmentation_type()
-            
-            input_grid = example['input']
-            output_grid = example['output']
-            
+            aug_type = sample_augmentation_type(self.augmentation_config)
+
+            input_grid = example["input"]
+            output_grid = example["output"]
+
             # Apply augmentation if not identity
-            if aug_type != 'identity':
+            if aug_type != "identity":
                 input_grid, output_grid = apply_augmentation_to_example(
                     input_grid, output_grid, aug_type
                 )
-            
+
             # Convert augmented grids to sequence
             seq = pack_example(input_grid, output_grid, self.mode)
-            
+
             # Truncate if needed
             if len(seq) > self.max_len:
-                seq = seq[:self.max_len]
+                seq = seq[: self.max_len]
         else:
-            seq = example['sequence']
-        
+            seq = example["sequence"]
+
         x = torch.tensor(seq[:-1], dtype=torch.long)
         y = torch.tensor(seq[1:], dtype=torch.long)
         return x, y
 
 class Collate:
+    """Collate function for DataLoader with padding."""
+
     def __init__(self, pad_id=None):
-        self.pad = pad_id or TRAINING_CONFIG['pad_token_id']
+        self.pad = pad_id or TRAINING_CONFIG["pad_token_id"]
+
     def __call__(self, batch):
         xs, ys = zip(*batch)
         T = max(t.size(0) for t in xs)
         bx = torch.full((len(xs), T), self.pad, dtype=torch.long)
         by = torch.full((len(xs), T), self.pad, dtype=torch.long)
-        for i,(x,y) in enumerate(zip(xs, ys)):
-            bx[i,:x.size(0)] = x
-            by[i,:y.size(0)] = y
+        for i, (x, y) in enumerate(zip(xs, ys)):
+            bx[i, : x.size(0)] = x
+            by[i, : y.size(0)] = y
         return bx, by
 
-# def train(..., bs: int = 8, grad_accum_steps: int = 4): for 4096
-def train(model_dir: str, data_path: str, 
-          steps: int | None = None, bs: int | None = None, lr: float | None = None, 
-          d_model: int | None = None, training_profile: str | None = None, model_size: str | None = None,
-          resume_from_checkpoint: bool = True, enable_drive_backup: bool = True, 
-          drive_backup_path: str = "/content/drive/MyDrive/ARC_AGI_Checkpoints",
-          augmentation_config: dict | None = None):
+def train(
+    model_dir: str,
+    data_path: str,
+    steps: int | None = None,
+    bs: int | None = None,
+    lr: float | None = None,
+    d_model: int | None = None,
+    training_profile: str | None = None,
+    model_size: str | None = None,
+    resume_from_checkpoint: bool = True,
+    enable_drive_backup: bool = True,
+    drive_backup_path: str = "/content/drive/MyDrive/ARC_AGI_Checkpoints",
+    augmentation_config: dict | None = None,
+):
     """
-    Train TinyLM model with centralized configuration management and Google Drive backup.
-    
+    Train TinyLM model with centralized configuration management.
+
     Args:
         model_dir: Directory to save model checkpoints
         data_path: Path to training data
@@ -337,25 +163,13 @@ def train(model_dir: str, data_path: str,
         d_model: Model dimension (uses MODEL_CONFIG default if None)
         training_profile: Use predefined training profile ('debug', 'small_gpu', etc.)
         model_size: Use predefined model size ('tiny', 'small', 'medium', 'large')
-        resume_from_checkpoint: Whether to resume from existing best.pt checkpoint if available
-        enable_drive_backup: Whether to automatically backup checkpoints to Google Drive
+        resume_from_checkpoint: Whether to resume from existing best.pt checkpoint
+        enable_drive_backup: Whether to backup checkpoints to Google Drive
         drive_backup_path: Google Drive path for checkpoint backups
-        augmentation_config: Dictionary specifying augmentation strategy:
-            {
-                'random': float,      # Probability of random augmentation (mix of all types)
-                'None': float,        # Probability of no augmentation (identity)
-                'specific': {         # Specific augmentation types with individual probabilities
-                    'geometric': float,   # All geometric transforms
-                    'color': float,       # Color permutations
-                    'rotation': float,    # Rotation only
-                    'flip': float,        # Flip only
-                    'transpose': float,   # Transpose only
-                }
-            }
+        augmentation_config: Dictionary specifying augmentation strategy.
             If None, uses AUGMENTATION_CONFIG from constants.
-            Note: Probabilities should sum to 1.0 for proper sampling.
     """
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     print("*" * 20)
     print(f"Using device: {device}")
     print("*" * 20)
@@ -367,48 +181,51 @@ def train(model_dir: str, data_path: str,
         if drive_backup_enabled:
             print("Google Drive automatic backup enabled")
         else:
-            print("Google Drive backup disabled - training will continue without cloud backup")
-    
+            print(
+                "Google Drive backup disabled - training will continue without cloud backup"
+            )
+
     # Get configurations
     if training_profile:
         train_config = get_training_config(training_profile)
     else:
         train_config = TRAINING_CONFIG.copy()
-    
+
     if model_size:
         model_config = get_model_config(model_size)
     else:
         model_config = MODEL_CONFIG.copy()
-    
+
     # Override with function parameters if provided
-    steps = steps or train_config['steps']
-    bs = bs or train_config['batch_size']
-    lr = lr or train_config['learning_rate']
-    grad_accum_steps = train_config['grad_accumulation_steps']
+    steps = steps or train_config["steps"]
+    bs = bs or train_config["batch_size"]
+    lr = lr or train_config["learning_rate"]
+    grad_accum_steps = train_config["grad_accumulation_steps"]
     if d_model:
-        model_config['d_model'] = d_model
-    
+        model_config["d_model"] = d_model
+
     effective_batch_size = bs * grad_accum_steps
     print(f"Training config: steps={steps}, batch_size={bs}, lr={lr}")
-    print(f"Gradient accumulation: {grad_accum_steps} steps, effective_batch_size={effective_batch_size}")
-    print(f"Model config: d_model={model_config['d_model']}, n_layers={model_config['n_layers']}")
-    
+    print(
+        f"Gradient accumulation: {grad_accum_steps} steps, effective_batch_size={effective_batch_size}"
+    )
+    print(
+        f"Model config: d_model={model_config['d_model']}, n_layers={model_config['n_layers']}"
+    )
+
     # Use provided augmentation config or default from constants
     aug_config = augmentation_config or AUGMENTATION_CONFIG
-    
+
     # Check if augmentation is enabled
-    use_augmentation = (
-        aug_config.get('random', 0) > 0 or
-        any(prob > 0 for prob in aug_config.get('specific', {}).values())
-    )
-    
+    use_augmentation = is_augmentation_enabled(aug_config)
+
     # Display augmentation settings
     if use_augmentation:
         print(f"Data Augmentation: ENABLED")
         print(f"  Configuration:")
         print(f"    random: {aug_config.get('random', 0)}")
         print(f"    None (identity): {aug_config.get('None', 0)}")
-        specific = aug_config.get('specific', {})
+        specific = aug_config.get("specific", {})
         if any(prob > 0 for prob in specific.values()):
             print(f"    specific:")
             for aug_type, prob in specific.items():
@@ -418,67 +235,77 @@ def train(model_dir: str, data_path: str,
         print(f"Data Augmentation: DISABLED")
     
     # Load data and create dataset
-    tasks = load_tasks(data_path)  # returns List[Task]
+    tasks = load_tasks(data_path)
     ds = ArcPairsDataset(
-        tasks, 
-        mode=train_config['serialization_mode'], 
-        max_len=train_config['max_sequence_length'],
-        augmentation_config=aug_config
+        tasks,
+        mode=train_config["serialization_mode"],
+        max_len=train_config["max_sequence_length"],
+        augmentation_config=aug_config,
     )
-    dl = DataLoader(ds, batch_size=bs, shuffle=True, drop_last=True, collate_fn=Collate())
-    
+    dl = DataLoader(
+        ds, batch_size=bs, shuffle=True, drop_last=True, collate_fn=Collate()
+    )
+
     # Create model
-    cfg = TinyLMConfig(vocab_size=VOCAB_SIZE, **{k: v for k, v in model_config.items() if k != 'vocab_size'})
+    cfg = TinyLMConfig(
+        vocab_size=VOCAB_SIZE,
+        **{k: v for k, v in model_config.items() if k != "vocab_size"},
+    )
     model = TinyLM(cfg).to(device)
-    
+
     # Optimizer with config values
-    opt = torch.optim.AdamW(model.parameters(), lr=lr, 
-                           betas=train_config['betas'], 
-                           weight_decay=train_config['weight_decay'])
-    scaler = torch.amp.GradScaler(device, enabled=(device=='cuda' and train_config['use_amp']))
-    loss_fn = nn.CrossEntropyLoss(ignore_index=train_config['ignore_index'])
+    opt = torch.optim.AdamW(
+        model.parameters(),
+        lr=lr,
+        betas=train_config["betas"],
+        weight_decay=train_config["weight_decay"],
+    )
+    scaler = torch.amp.GradScaler(
+        device, enabled=(device == "cuda" and train_config["use_amp"])
+    )
+    loss_fn = nn.CrossEntropyLoss(ignore_index=train_config["ignore_index"])
 
     # Best model tracking and checkpoint resuming
-    best_loss = float('inf')
+    best_loss = float("inf")
     start_step = 0
-    
+
     # Check for existing checkpoint to resume from
     checkpoint_path = Path(model_dir) / "best.pt"
     if resume_from_checkpoint and checkpoint_path.exists():
         print(f"Found existing checkpoint: {checkpoint_path}")
         try:
             checkpoint = torch.load(checkpoint_path, map_location=device)
-            
+
             # Load model state
-            model.load_state_dict(checkpoint['model'])
+            model.load_state_dict(checkpoint["model"])
             print(f"Loaded model state from checkpoint")
-            
+
             # Load best loss if available
-            if 'loss' in checkpoint:
-                best_loss = checkpoint['loss']
+            if "loss" in checkpoint:
+                best_loss = checkpoint["loss"]
                 print(f"Resuming with best loss: {best_loss:.4f}")
-            
+
             # Load optimizer state if available
-            if 'optimizer' in checkpoint:
-                opt.load_state_dict(checkpoint['optimizer'])
+            if "optimizer" in checkpoint:
+                opt.load_state_dict(checkpoint["optimizer"])
                 print(f"Loaded optimizer state from checkpoint")
-            
+
             # Load scaler state if available
-            if 'scaler' in checkpoint:
-                scaler.load_state_dict(checkpoint['scaler'])
+            if "scaler" in checkpoint:
+                scaler.load_state_dict(checkpoint["scaler"])
                 print(f"Loaded scaler state from checkpoint")
-            
+
             # Load training step if available
-            if 'step' in checkpoint:
-                start_step = checkpoint['step'] + 1
+            if "step" in checkpoint:
+                start_step = checkpoint["step"] + 1
                 print(f"Resuming from step: {start_step}")
-            
+
             print("Successfully resumed from checkpoint!")
-            
+
         except Exception as e:
             print(f"Error loading checkpoint: {e}")
             print("Starting training from scratch...")
-            best_loss = float('inf')
+            best_loss = float("inf")
             start_step = 0
     else:
         if resume_from_checkpoint:
@@ -491,112 +318,111 @@ def train(model_dir: str, data_path: str,
     remaining_steps = steps - start_step
     pbar = tqdm(range(remaining_steps), total=remaining_steps, initial=0)
     pbar.set_description(f"Starting from step {start_step}")
-    
+
     for step_idx in pbar:
         step = start_step + step_idx  # Actual step number
         # Gradient accumulation loop
         total_loss = 0.0
         opt.zero_grad(set_to_none=True)
-        
+
         for accum_step in range(grad_accum_steps):
             try:
                 x, y = next(it)
             except StopIteration:
-                it = iter(dl); x,y = next(it)
-            x,y = x.to(device), y.to(device)
-            
-            with torch.amp.autocast(device, enabled=(device=='cuda' and train_config['use_amp'])):
+                it = iter(dl)
+                x, y = next(it)
+            x, y = x.to(device), y.to(device)
+
+            with torch.amp.autocast(
+                device, enabled=(device == "cuda" and train_config["use_amp"])
+            ):
                 logits = model(x)
                 loss = loss_fn(logits.view(-1, logits.size(-1)), y.view(-1))
                 # Scale loss by accumulation steps for proper averaging
                 loss = loss / grad_accum_steps
-            
+
             scaler.scale(loss).backward()
             total_loss += loss.item()
-        
+
         # Update parameters after accumulating gradients
-        torch.nn.utils.clip_grad_norm_(model.parameters(), train_config['grad_clip_norm'])
+        torch.nn.utils.clip_grad_norm_(
+            model.parameters(), train_config["grad_clip_norm"]
+        )
         scaler.step(opt)
         scaler.update()
-        
+
         # Use total_loss for logging (already averaged)
         pbar.set_description(f"loss={total_loss:.3f}")
-        
+
         # Save best model if current loss is better
         if total_loss < best_loss:
             best_loss = total_loss
-            out = Path(model_dir); out.mkdir(parents=True, exist_ok=True)
+            out = Path(model_dir)
+            out.mkdir(parents=True, exist_ok=True)
             # Save comprehensive checkpoint for resuming
             checkpoint_dict = {
-                'model': model.state_dict(),
-                'cfg': cfg.__dict__,
-                'loss': best_loss,
-                'step': step,
-                'optimizer': opt.state_dict(),
-                'scaler': scaler.state_dict(),
-                'lr': lr,
-                'training_config': train_config,
-                'model_config': model_config
+                "model": model.state_dict(),
+                "cfg": cfg.__dict__,
+                "loss": best_loss,
+                "step": step,
+                "optimizer": opt.state_dict(),
+                "scaler": scaler.state_dict(),
+                "lr": lr,
+                "training_config": train_config,
+                "model_config": model_config,
             }
-            
+
             # Save local checkpoint
             best_checkpoint_path = out / "best.pt"
             torch.save(checkpoint_dict, best_checkpoint_path)
-            
+
             # Automatically backup to Google Drive if enabled
             if drive_backup_enabled:
                 backup_checkpoint_to_drive(best_checkpoint_path, drive_backup_path)
-            
+
             pbar.set_description(f"loss={total_loss:.3f} ★NEW BEST★ (step {step})")
-        
-        if (step+1) % train_config['save_every'] == 0:
-            out = Path(model_dir); out.mkdir(parents=True, exist_ok=True)
+
+        if (step + 1) % train_config["save_every"] == 0:
+            out = Path(model_dir)
+            out.mkdir(parents=True, exist_ok=True)
             # Save regular checkpoint with full state
             checkpoint_dict = {
-                'model': model.state_dict(),
-                'cfg': cfg.__dict__,
-                'loss': total_loss,
-                'step': step,
-                'optimizer': opt.state_dict(),
-                'scaler': scaler.state_dict(),
-                'lr': lr,
-                'training_config': train_config,
-                'model_config': model_config
+                "model": model.state_dict(),
+                "cfg": cfg.__dict__,
+                "loss": total_loss,
+                "step": step,
+                "optimizer": opt.state_dict(),
+                "scaler": scaler.state_dict(),
+                "lr": lr,
+                "training_config": train_config,
+                "model_config": model_config,
             }
-            torch.save(checkpoint_dict, out/f"ckpt_{step+1}.pt")
+            torch.save(checkpoint_dict, out / f"ckpt_{step+1}.pt")
     
-    # final save
-    out = Path(model_dir); out.mkdir(parents=True, exist_ok=True)
+    # Final save
+    out = Path(model_dir)
+    out.mkdir(parents=True, exist_ok=True)
     final_checkpoint = {
-        'model': model.state_dict(),
-        'cfg': cfg.__dict__,
-        'loss': total_loss,
-        'step': step,
-        'optimizer': opt.state_dict(),
-        'scaler': scaler.state_dict(),
-        'lr': lr,
-        'training_config': train_config,
-        'model_config': model_config,
-        'training_completed': True
+        "model": model.state_dict(),
+        "cfg": cfg.__dict__,
+        "loss": total_loss,
+        "step": step,
+        "optimizer": opt.state_dict(),
+        "scaler": scaler.state_dict(),
+        "lr": lr,
+        "training_config": train_config,
+        "model_config": model_config,
+        "training_completed": True,
     }
     final_checkpoint_path = out / "final.pt"
     torch.save(final_checkpoint, final_checkpoint_path)
-    
+
     # Final backup to Google Drive if enabled
     if drive_backup_enabled:
         print("Performing final backup to Google Drive...")
         backup_checkpoint_to_drive(out / "best.pt", drive_backup_path)
-        
-        # Also backup final checkpoint to history
-        try:
-            drive_path = Path(drive_backup_path)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            final_backup = drive_path / "backup_history" / f"final_{timestamp}.pt"
-            shutil.copy2(final_checkpoint_path, final_backup)
-            print(f"Final checkpoint backed up: {final_backup}")
-        except Exception as e:
-            print(f"Failed to backup final checkpoint: {e}")
-    
+        backup_final_checkpoint(final_checkpoint_path, drive_backup_path)
+
     print("Training completed!")
     if drive_backup_enabled:
         print(f"All checkpoints backed up to: {drive_backup_path}")
