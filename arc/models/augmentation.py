@@ -24,6 +24,7 @@ def get_random_augmentation(
     palette: set[int] | None = None,
     augmentation_type: str = "random",
     seed: int = 42,
+    is_square: bool = True,
 ) -> ViewSpec:
     """
     Get a random augmentation ViewSpec based on the specified type.
@@ -39,6 +40,8 @@ def get_random_augmentation(
             - 'flip': Random flip (horizontal or vertical)
             - 'transpose': Transpose variations
         seed: Random seed for reproducibility
+        is_square: Whether the grid is square (height == width). Required for
+            transpose, rotation 90, and rotation 270 transformations.
 
     Returns:
         ViewSpec with the selected augmentation
@@ -58,22 +61,35 @@ def get_random_augmentation(
 
     elif augmentation_type == "geometric":
         # Randomly select a geometric transformation
-        geom = random.choice(D4)
+        # For non-square grids, exclude transformations that change dimensions
+        if is_square:
+            geom = random.choice(D4)
+        else:
+            # Only use transformations that preserve dimensions (180° rotation and flips)
+            geom = random.choice(["rot180", "flip_h", "flip_v", "id"])
         color_map = identity_cmap()
 
     elif augmentation_type == "rotation":
         # Only rotation transformations
-        geom = random.choice(["rot90", "rot180", "rot270"])
+        # For non-square grids, only 180° rotation is allowed
+        if is_square:
+            geom = random.choice(["rot90", "rot180", "rot270"])
+        else:
+            geom = "rot180"  # Only 180° rotation preserves dimensions
         color_map = identity_cmap()
 
     elif augmentation_type == "flip":
-        # Only flip transformations
+        # Only flip transformations (always safe for any grid dimensions)
         geom = random.choice(["flip_h", "flip_v"])
         color_map = identity_cmap()
 
     elif augmentation_type == "transpose":
-        # Transpose variations
-        geom = random.choice(["transpose", "transpose_flip", "flip_transpose"])
+        # Transpose variations - only for square grids
+        if is_square:
+            geom = random.choice(["transpose", "transpose_flip", "flip_transpose"])
+        else:
+            # Fall back to flip if not square
+            geom = random.choice(["flip_h", "flip_v"])
         color_map = identity_cmap()
 
     elif augmentation_type == "color":
@@ -84,7 +100,12 @@ def get_random_augmentation(
 
     elif augmentation_type == "random":
         # Random geometric transformation
-        geom = random.choice(D4)
+        # For non-square grids, exclude transformations that change dimensions
+        if is_square:
+            geom = random.choice(D4)
+        else:
+            # Only use transformations that preserve dimensions
+            geom = random.choice(["rot180", "flip_h", "flip_v", "id"])
         color_map = identity_cmap()
 
         # 50% chance to also apply color permutation
@@ -118,8 +139,14 @@ def apply_augmentation_to_example(
     # Extract palette from both grids
     palette = set(np.unique(input_grid.a)) | set(np.unique(output_grid.a))
 
-    # Get random augmentation
-    view_spec = get_random_augmentation(palette, augmentation_type)
+    # Check if both grids are square (required for certain transformations)
+    # Both input and output must be square for dimension-changing transformations
+    input_is_square = input_grid.a.shape[0] == input_grid.a.shape[1]
+    output_is_square = output_grid.a.shape[0] == output_grid.a.shape[1]
+    is_square = input_is_square and output_is_square
+
+    # Get random augmentation (with square constraint)
+    view_spec = get_random_augmentation(palette, augmentation_type, is_square=is_square)
 
     # Apply same augmentation to both input and output
     aug_input = apply_view_grid(input_grid, view_spec)

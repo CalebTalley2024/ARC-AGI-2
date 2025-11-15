@@ -7,7 +7,7 @@ constants to enable easy configuration management and experimentation.
 
 
 # ============================================================================
-# TOKENIZATION CONSTANTS
+# DIEDRAL CONSTANTS
 # ============================================================================
 
 D4 = ['id','rot90','rot180','rot270','flip_h','flip_v','transpose','transpose_flip','flip_transpose']
