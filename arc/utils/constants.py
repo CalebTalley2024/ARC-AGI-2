@@ -100,7 +100,7 @@ MODEL_CONFIGS = {
 # Training hyperparameters
 TRAINING_CONFIG = {
     # Core training parameters
-    'steps': 100_000,           # Total training steps
+    'steps': 150_000,           # Total training steps
     'batch_size': 32,           # Batch size
     'learning_rate': 3e-4,      # Learning rate
     # 'max_sequence_length': 2048, # Max sequence length for dataset filtering (matches default model max_len)
@@ -184,32 +184,45 @@ DATA_CONFIG = {
 #       * 'rotation': Rotation transforms only (90, 180, 270)
 #       * 'flip': Flip transforms only (horizontal, vertical)
 #       * 'transpose': Transpose variations only
+#   - 'augmentation_multiplier': Number of augmented copies to create per original example
+#       * 1 (default): On-the-fly augmentation, dataset size stays constant
+#       * >1: Pre-generate augmented copies, multiplies dataset size
+#       * Example: multiplier=3 means 1 original + 2 augmented = 3x dataset size
 AUGMENTATION_CONFIG = {
-    'random': 0.0,      # Probability of random augmentation (mix of all types)
-    'None': 1.0,        # Probability of no augmentation (identity)
+    'random': 0.3,      # Probability of random augmentation (mix of all types)
+    'None': 0.4,        # Probability of no augmentation (identity)
     'specific': {       # Specific augmentation types with individual probabilities
-        'geometric': 0.0,   # All geometric transforms
-        'color': 0.0,       # Color permutations
+        'geometric': 0.1,   # All geometric transforms
+        'color': 0.2,       # Color permutations
         'rotation': 0.0,    # Rotation only
         'flip': 0.0,        # Flip only
         'transpose': 0.0,   # Transpose only
-    }
+    },
+    'augmentation_multiplier': 1,  # Dataset size multiplier (1=on-the-fly, >1=pre-generate copies)
 }
 
 # Example configurations:
 # 1. No augmentation (default):
-#    {'random': 0.0, 'None': 1.0, 'specific': {...all 0.0}}
+#    {'random': 0.0, 'None': 1.0, 'specific': {...all 0.0}, 'augmentation_multiplier': 1}
 #
-# 2. 50% random augmentation, 50% no augmentation:
-#    {'random': 0.5, 'None': 0.5, 'specific': {...all 0.0}}
+# 2. On-the-fly: 50% random augmentation, 50% no augmentation (dataset size unchanged):
+#    {'random': 0.5, 'None': 0.5, 'specific': {...all 0.0}, 'augmentation_multiplier': 1}
 #
-# 3. Mix of specific augmentations:
-#    {'random': 0.0, 'None': 0.3, 'specific': {'geometric': 0.3, 'color': 0.4, ...}}
+# 3. Pre-generated: 3x dataset size with geometric augmentations:
+#    {'random': 0.0, 'None': 0.3, 'specific': {'geometric': 0.7, ...}, 'augmentation_multiplier': 3}
+#    - Original: 400 examples → Result: 1200 examples (400 original + 800 augmented)
 #
-# 4. Only geometric augmentations:
-#    {'random': 0.0, 'None': 0.2, 'specific': {'geometric': 0.8, 'color': 0.0, ...}}
+# 4. Pre-generated: 2x dataset size, all augmented (no originals):
+#    {'random': 0.0, 'None': 0.0, 'specific': {'geometric': 0.5, 'color': 0.5}, 'augmentation_multiplier': 2}
+#    - Original: 400 examples → Result: 800 examples (all augmented)
 #
-# Note: Probabilities across all modes should sum to 1.0 for proper sampling
+# 5. Mix of specific augmentations (on-the-fly):
+#    {'random': 0.0, 'None': 0.3, 'specific': {'geometric': 0.3, 'color': 0.4, ...}, 'augmentation_multiplier': 1}
+#
+# Note: 
+# - Probabilities across all modes should sum to 1.0 for proper sampling
+# - augmentation_multiplier=1: On-the-fly augmentation (memory efficient, different each epoch)
+# - augmentation_multiplier>1: Pre-generate augmented copies (uses more memory, same augmentations each epoch)
 
 # Sequence length analysis thresholds
 SEQUENCE_ANALYSIS = {

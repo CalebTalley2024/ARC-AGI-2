@@ -1,8 +1,32 @@
 # ARC Dataset v2 Changelog
 
-This document tracks changes and updates to the ARC-AGI-2 dataset tasks.
+This document tracks changes and updates to the ARC-AGI-2 dataset tasks and codebase.
 
-## Updates
+## Codebase Updates
+
+### 2024-11-14 - Data Augmentation Multiplier Feature
+
+**Added:** New `augmentation_multiplier` parameter to support dataset size multiplication via pre-generated augmentations.
+
+**Changes:**
+- `arc/utils/constants.py`: Added `augmentation_multiplier` parameter to `AUGMENTATION_CONFIG`
+- `arc/models/train.py`: Updated `ArcPairsDataset` to support both on-the-fly and pre-generated augmentation modes
+- `arc/models/train.py`: Enhanced training output to display augmentation mode and dataset size information
+
+**New Documentation:**
+- `AUGMENTATION_MULTIPLIER_GUIDE.md`: Comprehensive guide comparing on-the-fly vs pre-generated modes
+- `AUGMENTATION_MULTIPLIER_QUICKREF.md`: Quick reference for common use cases
+- `AUGMENTATION_MULTIPLIER_VISUAL.md`: Visual diagrams and flowcharts
+- `AUGMENTATION_MULTIPLIER_IMPLEMENTATION.md`: Implementation details and summary
+- `examples/augmentation_multiplier_demo.py`: Runnable demonstration script
+
+**Behavior:**
+- `multiplier = 1` (default): On-the-fly augmentation, dataset size unchanged, memory efficient
+- `multiplier > 1`: Pre-generate augmented copies, multiplies dataset size, uses more memory
+
+**Backward Compatibility:** ✅ Fully backward compatible, default behavior unchanged
+
+## Dataset Updates
 
 ### 2025-04-17
 

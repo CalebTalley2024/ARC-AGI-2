@@ -36,7 +36,11 @@ class ArcPairsDataset(Dataset):
     """
     Dataset for ARC task pairs with optional data augmentation.
     
-    Loads task pairs and applies augmentation on-the-fly during training.
+    Supports two augmentation modes:
+    1. On-the-fly (multiplier=1): Augmentation applied dynamically in __getitem__,
+       dataset size stays constant, different augmentations each epoch.
+    2. Pre-generated (multiplier>1): Creates multiple augmented copies during init,
+       increases dataset size, same augmentations each epoch.
     """
 
     def __init__(self, tasks, mode=None, max_len=None, augmentation_config=None):
@@ -49,6 +53,9 @@ class ArcPairsDataset(Dataset):
             max_len: Maximum sequence length
             augmentation_config: Dictionary specifying augmentation strategy.
                 If None, uses AUGMENTATION_CONFIG from constants.
+                Key parameter: 'augmentation_multiplier'
+                  - 1 (default): On-the-fly augmentation, dataset size unchanged
+                  - >1: Pre-generate augmented copies, multiplies dataset size
         """
         self.examples = []
         # Use constants with fallback to function parameters
@@ -60,6 +67,9 @@ class ArcPairsDataset(Dataset):
 
         # Check if augmentation is enabled
         self.use_augmentation = is_augmentation_enabled(self.augmentation_config)
+        
+        # Get augmentation multiplier (1 = on-the-fly, >1 = pre-generate copies)
+        self.augmentation_multiplier = self.augmentation_config.get('augmentation_multiplier', 1)
 
         for task_dict in tasks:
             # Access 'train' key from task dictionary
@@ -70,15 +80,38 @@ class ArcPairsDataset(Dataset):
 
                 # Store original grids for augmentation
                 if self.use_augmentation:
-                    # Store original grids and generate augmented versions on-the-fly
-                    self.examples.append(
-                        {
-                            "input": input_grid,
-                            "output": output_grid,
-                            "mode": mode,
-                            "is_augmented": False,
-                        }
-                    )
+                    if self.augmentation_multiplier > 1:
+                        # Pre-generate augmented copies to increase dataset size
+                        for copy_idx in range(self.augmentation_multiplier):
+                            # Sample augmentation type for this copy
+                            aug_type = sample_augmentation_type(self.augmentation_config)
+                            
+                            # Apply augmentation if not identity
+                            if aug_type != "identity":
+                                aug_input, aug_output = apply_augmentation_to_example(
+                                    input_grid, output_grid, aug_type
+                                )
+                            else:
+                                aug_input, aug_output = input_grid, output_grid
+                            
+                            # Convert to sequence and store
+                            seq = pack_example(aug_input, aug_output, mode)
+                            if len(seq) <= max_len:
+                                self.examples.append({
+                                    "sequence": seq,
+                                    "is_augmented": (aug_type != "identity"),
+                                    "augmentation_type": aug_type
+                                })
+                    else:
+                        # On-the-fly augmentation: store original grids
+                        self.examples.append(
+                            {
+                                "input": input_grid,
+                                "output": output_grid,
+                                "mode": mode,
+                                "is_augmented": False,
+                            }
+                        )
                 else:
                     # Convert to token sequence directly
                     seq = pack_example(input_grid, output_grid, mode)
@@ -95,6 +128,7 @@ class ArcPairsDataset(Dataset):
     def __getitem__(self, idx):
         example = self.examples[idx]
 
+        # On-the-fly augmentation mode (multiplier=1)
         if self.use_augmentation and "input" in example:
             # Sample augmentation type based on probability distribution
             aug_type = sample_augmentation_type(self.augmentation_config)
@@ -115,6 +149,7 @@ class ArcPairsDataset(Dataset):
             if len(seq) > self.max_len:
                 seq = seq[: self.max_len]
         else:
+            # Pre-generated augmentation mode (multiplier>1) or no augmentation
             seq = example["sequence"]
 
         x = torch.tensor(seq[:-1], dtype=torch.long)
@@ -218,10 +253,14 @@ def train(
 
     # Check if augmentation is enabled
     use_augmentation = is_augmentation_enabled(aug_config)
+    augmentation_multiplier = aug_config.get('augmentation_multiplier', 1)
 
     # Display augmentation settings
     if use_augmentation:
         print(f"Data Augmentation: ENABLED")
+        print(f"  Mode: {'Pre-generated (multiplies dataset)' if augmentation_multiplier > 1 else 'On-the-fly (dynamic per epoch)'}")
+        if augmentation_multiplier > 1:
+            print(f"  Dataset multiplier: {augmentation_multiplier}x")
         print(f"  Configuration:")
         print(f"    random: {aug_config.get('random', 0)}")
         print(f"    None (identity): {aug_config.get('None', 0)}")
@@ -242,6 +281,13 @@ def train(
         max_len=train_config["max_sequence_length"],
         augmentation_config=aug_config,
     )
+    
+    # Display dataset size information
+    print(f"Dataset size: {len(ds)} examples")
+    if use_augmentation and augmentation_multiplier > 1:
+        original_size = len(ds) // augmentation_multiplier
+        print(f"  (Original: ~{original_size} examples × {augmentation_multiplier} multiplier)")
+    
     dl = DataLoader(
         ds, batch_size=bs, shuffle=True, drop_last=True, collate_fn=Collate()
     )
