@@ -1,24 +1,68 @@
-# Core dependencies
-numpy==1.24.3
-matplotlib==3.7.1
+# ARC-AGI-2 Requirements
+# Exact versions from conda env nlp-proj for Google Colab compatibility
+
+# Core scientific computing
+numpy==1.24.4
+matplotlib==3.7.5
 pandas==2.0.3
-torch==2.0.1
-transformers==4.30.2
-scikit-learn==1.3.0
-jupyter==1.0.0
-ipykernel==6.25.0
+scipy==1.10.1
+scikit-learn==1.3.2
 
-# Development dependencies
-pytest==7.4.0
-pytest-cov==4.1.0
-black==23.7.0
-ruff==0.0.284
-pre-commit==3.3.3
-mypy==1.5.1
-hypothesis==6.82.0
+# PyTorch ecosystem
+torch==2.2.2
+torchvision==0.17.2
+torchaudio==2.2.2
 
-# Additional useful packages for ARC research
-pillow==10.0.0
-tqdm==4.65.0
-seaborn==0.12.2
-plotly==5.15.0
+# Transformers and ML
+transformers==4.46.3
+huggingface-hub==0.36.0
+tokenizers==0.20.3
+safetensors==0.5.3
+
+# Jupyter environment
+jupyter==1.1.1
+jupyterlab==4.3.8
+notebook==7.3.3
+ipykernel==6.29.5
+ipython==8.12.3
+ipywidgets==8.1.8
+jupyter-client==8.6.3
+jupyter-console==6.6.3
+jupyter-core==5.8.1
+jupyter-server==2.14.2
+notebook-shim==0.2.4
+
+# Visualization
+seaborn==0.13.2
+plotly==6.4.0
+pillow==10.4.0
+
+# Utilities
+tqdm==4.67.1
+pyyaml==6.0.3
+requests==2.32.4
+packaging==25.0
+
+# Data formats and validation
+jsonschema==4.23.0
+fastjsonschema==2.21.2
+
+# Development and testing (optional but useful)
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.7.0
+ruff>=0.0.284
+
+# Additional dependencies from environment
+jinja2==3.1.6
+markupsafe==2.1.5
+urllib3==2.2.3
+certifi==2025.10.5
+charset-normalizer==3.4.4
+idna==3.11
+python-dateutil==2.9.0.post0
+pytz==2025.2
+tzdata==2025.2
+six==1.17.0
+setuptools==75.3.2
+wheel>=0.44.0

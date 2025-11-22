@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from typing import List, Set, Tuple
+
 import numpy as np
 
 # @caleb: i'm using np.int8 instead of np.uint8 in case there is signinficance to adding/subtracting palettes with results outside of 0 to 9
@@ -30,7 +32,7 @@ class Grid:
         self.a.flags.writeable = self.is_copy
 
     @property
-    def shape(self) -> tuple[int, int]:
+    def shape(self) -> Tuple[int, int]:
         return self.a.shape
 
     def copy(self) -> "Grid":
@@ -42,13 +44,13 @@ class Grid:
         return Grid(self.a.copy(), is_copy=True)
 
 
-    def palette(self) -> set[int]:
+    def palette(self) -> Set[int]:
         """
         returns the unique colors present in the grid
         """
         return set(np.unique(self.a).tolist())
 
-    def to_list(self) -> list[list[int]]:
+    def to_list(self) -> List[List[int]]:
         return self.a.tolist()
 
 
@@ -59,7 +61,7 @@ class Grid:
         """
         return f"Grid(shape={self.shape}, is_copy={self.is_copy})"
 
-def from_list(lst: list[list[int]], dtype=np.int8,  is_copy = False) -> Grid:
+def from_list(lst: List[List[int]], dtype=np.int8,  is_copy = False) -> Grid:
     '''
     converts list of lists of integers to a Grid object
     '''
