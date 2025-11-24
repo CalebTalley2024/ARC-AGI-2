@@ -85,4 +85,6 @@ class TinyLM(nn.Module):
         for blk in self.blocks:              # Pass through all 8 blocks
             x = blk(x)
         x = self.ln_f(x)                     # Final normalization
+        
+        x = x.unsqueeze(0) #@caleb: additional dimension at 0th index
         return self.head(x)                   # Convert to vocabulary probabilities (returns tuple)
