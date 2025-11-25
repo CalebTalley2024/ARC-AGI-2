@@ -63,7 +63,7 @@ MODEL_CONFIGS = {
         'p_drop': 0.1,
         'max_len': 2048,
     },
-    'small': {   # ~20.3M parameters, ~77 MB, good balance for training
+    'small': {   # ~20.3M parameters, ~77 MB, good balance for training #@caleb make sure solve_task.py is using this follows this
         'vocab_size': VOCAB_SIZE,
         'd_model': 448,
         'n_layers': 8,

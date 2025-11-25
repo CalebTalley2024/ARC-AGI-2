@@ -39,3 +39,14 @@ Part 4
     - updated `loader.py`` with seeding from `seeding.py`
 - other
     - made `run_tests.py` in `scripts/` that runs all test in `tests/` foler
+
+## 11 24 25 - @caleb
+
+- putting the Pending Part 2 from Vedant generated code function `generate_and_score` inside solve_task.py
+
+- test is in 'test_solve_task.py'
+
+- Created `viz_task_attempt.py`  
+    - Visualizes an example including input grid and expected grid  
+    - Shows the prediction made by the chosen model  
+    - Displays the log score

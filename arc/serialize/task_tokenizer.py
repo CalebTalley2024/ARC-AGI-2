@@ -13,6 +13,13 @@ from arc.utils.constants import (BOS, EOS, MAX_GRID_SIZE, NUM_COLORS, PAD, SEP,
 # ---- Serialization ----
 
 def serialize_grid(g: Grid, mode: str = "row") -> List[int]:
+    '''
+    Serialize a grid to a list of tokens.
+    
+    Args:
+        g: The grid to serialize.
+        mode: The mode to use for serialization. Note we plan on only using "row".
+    '''
     H, W = g.shape
     seq = [BOS, tok_w(W), tok_h(H)]
     # set of colors present, capped to 10 anyway
@@ -40,6 +47,7 @@ def deserialize_grid(seq: List[int], mode: str = "row") -> Grid:
     H = (seq[2] - TOK_H_BASE) + 1
     # find separators
     i = 3
+    # print(SEP, seq[i])
     assert seq[i] == SEP; i += 1
     # consume color inventory until SEP
     while seq[i] != SEP:

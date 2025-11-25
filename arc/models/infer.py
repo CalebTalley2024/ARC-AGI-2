@@ -5,6 +5,15 @@ import torch
 
 @torch.no_grad()
 def greedy_generate(model, input_ids: torch.LongTensor, max_new_tokens: int, eos_id: int) -> torch.LongTensor:
+    '''
+    Greedy generate a sequence from the model.
+    
+    Args:
+        model: The model to use for generation.
+        input_ids: The input ids to use for generation.
+        max_new_tokens: The maximum number of new tokens to generate.
+        eos_id: The end of sequence token id.
+    '''
     device = next(model.parameters()).device
     cur = input_ids.to(device)
     for _ in range(max_new_tokens):
