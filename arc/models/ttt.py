@@ -8,15 +8,13 @@ function to perform adaptation and prediction.
 
 from __future__ import annotations
 
-from random import random
 
+import random
+import copy
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from typing import Dict, Any, Tuple
-
-from arc.grids.core import Grid
-# Import from your existing codebase
+from typing import Dict, Any
 from arc.models.train import ArcPairsDataset, Collate
 from arc.utils.constants import TRAINING_CONFIG
 
@@ -37,9 +35,6 @@ ttt = TestTimeTrainer(
     augmentation_config=ttt_config
 )
 '''
-
-import random
-import copy
 
 
 def prepare_ttt_dataset(eval_task):
