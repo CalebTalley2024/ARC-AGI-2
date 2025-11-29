@@ -31,18 +31,18 @@ Functions to implement:
    #   mode: Solving strategy ('baseline', 'dfs', 'poe', 'ensemble')
    #   time_budget: Max seconds for this task (None = unlimited)
    # Returns: list of [attempt_1, attempt_2] for each test input
-   # 
+   #
    # For Week 0 (baseline mode):
    #   - Return trivial guesses to exercise pipeline
    #   - Option 1: Copy test input as output
    #   - Option 2: Return blank grid (all zeros)
    #   - Option 3: Copy first train output
-   # 
+   #
    # Future modes:
    #   - 'dfs': Depth-first search with program synthesis
    #   - 'poe': Product of Experts with multiple views
    #   - 'ensemble': Combine multiple strategies
-   # 
+   #
    # Steps:
    #   a. Start timer
    #   b. For each test input:
@@ -51,7 +51,7 @@ Functions to implement:
    #      - Check time budget, abort if exceeded
    #   c. Return list of [attempt_1, attempt_2] pairs
 
-2. solve_all(tasks_iter, out_path: str = "submission.json", mode: str = "baseline", 
+2. solve_all(tasks_iter, out_path: str = "submission.json", mode: str = "baseline",
              total_time_budget: float = None) -> dict
    # Solve all tasks and create submission file
    # Args:
@@ -60,7 +60,7 @@ Functions to implement:
    #   mode: Solving strategy
    #   total_time_budget: Max seconds for all tasks (e.g., 12*3600 for 12 hours)
    # Returns: dict with timing and accuracy statistics
-   # 
+   #
    # Steps:
    #   a. Initialize submission dict
    #   b. Start global timer
@@ -80,7 +80,7 @@ Functions to implement:
    # Args:
    #   attempts: list of [attempt_1, attempt_2] Grid pairs
    # Returns: list of {"attempt_1": [[...]], "attempt_2": [[...]]}
-   # 
+   #
    # Steps:
    #   a. For each [attempt_1, attempt_2] pair:
    #      - Convert grids to lists using to_list()
@@ -93,14 +93,14 @@ Functions to implement:
    #   submission: Submission dict to validate
    #   tasks_iter: Iterator over tasks (to check all present)
    # Returns: dict with validation results
-   # 
+   #
    # Checks:
    #   - All task_ids present
    #   - Each task has correct number of test inputs
    #   - Each test input has 2 attempts
    #   - All grids are valid (shapes, values)
    #   - No missing or extra entries
-   # 
+   #
    # Returns: {
    #   'valid': bool,
    #   'errors': list[str],
@@ -109,7 +109,7 @@ Functions to implement:
    #   'test_input_count': int
    # }
 
-5. log_progress(task_id: str, time_elapsed: float, time_remaining: float, 
+5. log_progress(task_id: str, time_elapsed: float, time_remaining: float,
                 tasks_solved: int, tasks_total: int) -> None
    # Print progress update
    # Format: "[123/400] task_abc123 | 2.3s | 10h 23m remaining"
@@ -121,12 +121,12 @@ Functions to implement:
    #   tasks_sample: Small sample of tasks (e.g., 5-10)
    #   mode: Solving strategy
    # Returns: Estimated seconds per task
-   # 
+   #
    # Steps:
    #   a. Run solve_task() on sample
    #   b. Measure time for each
    #   c. Return mean time
-   # 
+   #
    # Used to set per-task budgets dynamically
 
 7. create_baseline_guess(task: dict, test_input: Grid) -> Grid
@@ -136,7 +136,7 @@ Functions to implement:
    #   - Return blank grid (same shape, all zeros)
    #   - Copy first train output
    #   - Copy train output with most similar input shape
-   # 
+   #
    # Args:
    #   task: Task dict (for accessing train pairs)
    #   test_input: Test input grid

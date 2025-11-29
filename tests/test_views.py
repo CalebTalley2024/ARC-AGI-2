@@ -23,7 +23,7 @@ from arc.grids.views import (
 def test_geometry_identity():
     """Apply identity transform - grid should remain unchanged."""
     grid = Grid(np.array([[1, 2, 3], [4, 5, 6]]))
-    result = geom_apply(grid.a, 'id')
+    result = geom_apply(grid.a, "id")
     np.testing.assert_array_equal(result, grid.a)
 
 
@@ -31,7 +31,7 @@ def test_geometry_identity():
 def test_geometry_rot90():
     """Apply 90-degree rotation."""
     grid = Grid(np.array([[1, 2], [3, 4]]))
-    result = geom_apply(grid.a, 'rot90')
+    result = geom_apply(grid.a, "rot90")
     expected = np.array([[2, 4], [1, 3]])
     np.testing.assert_array_equal(result, expected)
 
@@ -40,7 +40,7 @@ def test_geometry_rot90():
 def test_geometry_rot180():
     """Apply 180-degree rotation."""
     grid = Grid(np.array([[1, 2], [3, 4]]))
-    result = geom_apply(grid.a, 'rot180')
+    result = geom_apply(grid.a, "rot180")
     expected = np.array([[4, 3], [2, 1]])
     np.testing.assert_array_equal(result, expected)
 
@@ -49,7 +49,7 @@ def test_geometry_rot180():
 def test_geometry_flip_h():
     """Apply horizontal flip."""
     grid = Grid(np.array([[1, 2, 3], [4, 5, 6]]))
-    result = geom_apply(grid.a, 'flip_h')
+    result = geom_apply(grid.a, "flip_h")
     expected = np.array([[3, 2, 1], [6, 5, 4]])
     np.testing.assert_array_equal(result, expected)
 
@@ -58,7 +58,7 @@ def test_geometry_flip_h():
 def test_geometry_flip_v():
     """Apply vertical flip."""
     grid = Grid(np.array([[1, 2, 3], [4, 5, 6]]))
-    result = geom_apply(grid.a, 'flip_v')
+    result = geom_apply(grid.a, "flip_v")
     expected = np.array([[4, 5, 6], [1, 2, 3]])
     np.testing.assert_array_equal(result, expected)
 
@@ -67,7 +67,7 @@ def test_geometry_flip_v():
 def test_geometry_transpose():
     """Apply transpose - rows become columns."""
     grid = Grid(np.array([[1, 2, 3], [4, 5, 6]]))
-    result = geom_apply(grid.a, 'transpose')
+    result = geom_apply(grid.a, "transpose")
     expected = np.array([[1, 4], [2, 5], [3, 6]])
     np.testing.assert_array_equal(result, expected)
 
@@ -81,8 +81,9 @@ def test_geometry_inverse():
         transformed = geom_apply(grid.a, geom_name)
         inv_name = geom_inverse(geom_name)
         restored = geom_apply(transformed, inv_name)
-        np.testing.assert_array_equal(restored, grid.a,
-                                      err_msg=f"Failed for {geom_name}")
+        np.testing.assert_array_equal(
+            restored, grid.a, err_msg=f"Failed for {geom_name}"
+        )
 
 
 # Color map identity
@@ -121,7 +122,9 @@ def test_color_map_inverse():
 def test_view_inverse_grid():
     """Apply view then invert - should return to original grid."""
     grid = Grid(np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]]))
-    spec = ViewSpec(geom='rot90', color_map=(1, 0, 2, 3, 4, 5, 6, 7, 8, 9), serialization='row')
+    spec = ViewSpec(
+        geom="rot90", color_map=(1, 0, 2, 3, 4, 5, 6, 7, 8, 9), serialization="row"
+    )
 
     transformed = apply_view_grid(grid, spec)
     restored = invert_view_grid(transformed, spec)
@@ -133,13 +136,19 @@ def test_view_inverse_task():
     """Apply view to task - verify train pairs still match."""
     task = {
         "train": [
-            {"input": Grid(np.array([[0, 1], [2, 3]])), "output": Grid(np.array([[1, 0], [3, 2]]))},
-            {"input": Grid(np.array([[4, 5], [6, 7]])), "output": Grid(np.array([[5, 4], [7, 6]]))}
+            {
+                "input": Grid(np.array([[0, 1], [2, 3]])),
+                "output": Grid(np.array([[1, 0], [3, 2]])),
+            },
+            {
+                "input": Grid(np.array([[4, 5], [6, 7]])),
+                "output": Grid(np.array([[5, 4], [7, 6]])),
+            },
         ],
-        "test": [Grid(np.array([[8, 9], [0, 1]]))]
+        "test": [Grid(np.array([[8, 9], [0, 1]]))],
     }
 
-    spec = ViewSpec(geom='flip_h', color_map=identity_cmap(), serialization='row')
+    spec = ViewSpec(geom="flip_h", color_map=identity_cmap(), serialization="row")
     transformed_task = apply_view_task(task, spec)
 
     # Verify structure
@@ -158,9 +167,15 @@ def test_color_safety():
     grid = Grid(np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]]))
 
     test_specs = [
-        ViewSpec(geom='rot90', color_map=identity_cmap(), serialization='row'),
-        ViewSpec(geom='flip_h', color_map=(9, 8, 7, 6, 5, 4, 3, 2, 1, 0), serialization='row'),
-        ViewSpec(geom='transpose', color_map=(1, 0, 2, 3, 4, 5, 6, 7, 8, 9), serialization='col'),
+        ViewSpec(geom="rot90", color_map=identity_cmap(), serialization="row"),
+        ViewSpec(
+            geom="flip_h", color_map=(9, 8, 7, 6, 5, 4, 3, 2, 1, 0), serialization="row"
+        ),
+        ViewSpec(
+            geom="transpose",
+            color_map=(1, 0, 2, 3, 4, 5, 6, 7, 8, 9),
+            serialization="col",
+        ),
     ]
 
     for spec in test_specs:
@@ -175,15 +190,15 @@ def test_shape_handling():
     grid = Grid(np.array([[1, 2, 3], [4, 5, 6]]))  # Shape: (2, 3)
 
     # rot90 should swap dimensions
-    result = geom_apply(grid.a, 'rot90')
+    result = geom_apply(grid.a, "rot90")
     assert result.shape == (3, 2), f"Expected (3, 2), got {result.shape}"
 
     # transpose should also swap dimensions
-    result = geom_apply(grid.a, 'transpose')
+    result = geom_apply(grid.a, "transpose")
     assert result.shape == (3, 2), f"Expected (3, 2), got {result.shape}"
 
     # flip_h should preserve dimensions
-    result = geom_apply(grid.a, 'flip_h')
+    result = geom_apply(grid.a, "flip_h")
     assert result.shape == (2, 3), f"Expected (2, 3), got {result.shape}"
 
 
@@ -207,10 +222,15 @@ def valid_grid_strategy(draw):
     """Generate random valid grids."""
     height = draw(st.integers(min_value=1, max_value=30))
     width = draw(st.integers(min_value=1, max_value=30))
-    arr = draw(st.lists(
-        st.lists(st.integers(min_value=0, max_value=9), min_size=width, max_size=width),
-        min_size=height, max_size=height
-    ))
+    arr = draw(
+        st.lists(
+            st.lists(
+                st.integers(min_value=0, max_value=9), min_size=width, max_size=width
+            ),
+            min_size=height,
+            max_size=height,
+        )
+    )
     return Grid(np.array(arr))
 
 
@@ -224,7 +244,7 @@ def valid_viewspec_strategy(draw):
     draw(st.randoms()).shuffle(perm)
     color_map = tuple(perm)
 
-    serialization = draw(st.sampled_from(['row', 'col']))
+    serialization = draw(st.sampled_from(["row", "col"]))
 
     return ViewSpec(geom=geom, color_map=color_map, serialization=serialization)
 
@@ -238,15 +258,18 @@ def test_view_inverse_property(grid, spec):
     np.testing.assert_array_equal(restored.a, grid.a)
 
 
-#Property-based test for task consistency
+# Property-based test for task consistency
 @given(spec=valid_viewspec_strategy())
 def test_task_consistency_property(spec):
     """For any task and viewspec, after transformation, train pairs still match."""
     task = {
         "train": [
-            {"input": Grid(np.array([[0, 1], [2, 3]])), "output": Grid(np.array([[1, 0], [3, 2]]))},
+            {
+                "input": Grid(np.array([[0, 1], [2, 3]])),
+                "output": Grid(np.array([[1, 0], [3, 2]])),
+            },
         ],
-        "test": [Grid(np.array([[8, 9], [0, 1]]))]
+        "test": [Grid(np.array([[8, 9], [0, 1]]))],
     }
 
     transformed_task = apply_view_task(task, spec)
@@ -310,7 +333,7 @@ def test_generate_data_driven_permutations():
     train_pairs = [
         {
             "input": Grid(np.array([[0, 1], [1, 0]])),
-            "output": Grid(np.array([[1, 0], [0, 1]]))
+            "output": Grid(np.array([[1, 0], [0, 1]])),
         }
     ]
     palette = {0, 1}
