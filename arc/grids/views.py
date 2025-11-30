@@ -18,7 +18,6 @@ D4 = [
     "flip_transpose",
 ]
 
-
 # frozen for hashability (config spec)
 @dataclass(frozen=True)
 class ViewSpec:

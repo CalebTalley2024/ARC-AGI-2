@@ -21,6 +21,25 @@ def load_task(path):
         return json.load(f)
 
 
+def load_tasks(data_path):
+    """
+    Load all ARC tasks from a directory.
+    
+    Args:
+        data_path: Path to directory containing task JSON files
+        
+    Returns:
+        List of task dictionaries
+    """
+    tasks = []
+    data_path = Path(data_path)
+    
+    for task_file in data_path.glob("*.json"):
+        tasks.append(load_task(task_file))
+    
+    return tasks
+
+
 # iterates over all tasks in the split path (training or evaluation)
 # split is either {training, evaluation}
 def iter_tasks(split):

@@ -74,10 +74,12 @@ class TestTimeTrainer:
         """
         # 1. Create a dataset just for this task
         # We wrap the single task in a list because ArcPairsDataset expects a list of tasks
+        # Use max_sequence_length if available, otherwise fall back to 2048
+        max_len = TRAINING_CONFIG.get("max_sequence_length", 2048)
         dataset = ArcPairsDataset(
             tasks=[task],
             mode=TRAINING_CONFIG["serialization_mode"],
-            max_len=TRAINING_CONFIG["max_sequence_length"],
+            max_len=max_len,
             augmentation_config=self.augmentation_config
         )
 
