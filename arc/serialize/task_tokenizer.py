@@ -71,16 +71,27 @@ def deserialize_grid(seq: List[int], mode: str = "row") -> Grid:
     if seq[0] != BOS:
         raise ValueError(f"Expected BOS={BOS} at position 0, got {seq[0]}")
 
-    W = (seq[1] - TOK_W_BASE) + 1
-    H = (seq[2] - TOK_H_BASE) + 1
+    # Decode width/height and clamp to valid ARC range as a best-effort recovery
+    raw_W_tok = seq[1]
+    raw_H_tok = seq[2]
+    W = (raw_W_tok - TOK_W_BASE) + 1
+    H = (raw_H_tok - TOK_H_BASE) + 1
 
-    if W < 1 or W > 30 or H < 1 or H > 30:
-        raise ValueError(f"Invalid dimensions: W={W}, H={H} (tokens: W_tok={seq[1]}, H_tok={seq[2]})")
+    if W < 1 or W > MAX_GRID_SIZE or H < 1 or H > MAX_GRID_SIZE:
+        # Clamp to [1, MAX_GRID_SIZE] instead of failing hard
+        W = min(MAX_GRID_SIZE, max(1, W))
+        H = min(MAX_GRID_SIZE, max(1, H))
 
-    # find separators
+    # find first SEP after header; if it's not exactly at position 3, search forward
     i = 3
+    if i >= len(seq):
+        raise ValueError("Sequence too short to contain first SEP after header")
     if seq[i] != SEP:
-        raise ValueError(f"Expected SEP={SEP} at position 3, got {seq[i]}")
+        # Search forward for the first SEP as a recovery strategy
+        try:
+            i = seq.index(SEP, i)
+        except ValueError:
+            raise ValueError(f"Expected SEP={SEP} after header, found none")
     i += 1
 
     # consume color inventory until SEP
@@ -94,11 +105,15 @@ def deserialize_grid(seq: List[int], mode: str = "row") -> Grid:
     # remaining until EOS (or end of sequence if no EOS)
     pix = []
     while i < len(seq) and seq[i] != EOS:
-        pix.append(seq[i] - TOK_PIXEL_BASE)
+        # Convert token to color index and clamp to valid color range
+        c = seq[i] - TOK_PIXEL_BASE
+        if c < 0 or c >= NUM_COLORS:
+            c = min(NUM_COLORS - 1, max(0, c))
+        pix.append(c)
         i += 1
 
     expected_pixels = H * W
-    
+
     if len(pix) < expected_pixels:
         raise ValueError(f"Pixel count too few: got {len(pix)}, expected {expected_pixels} for {H}x{W} grid")
     elif len(pix) > expected_pixels:

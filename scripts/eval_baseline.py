@@ -15,7 +15,7 @@ import numpy as np
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from arc.eval.solve_task import solve_fast as solve
+from arc.eval.solve_task import solve as solve
 from arc.grids.core import Grid
 from arc.io.loader import load_task
 
@@ -81,7 +81,7 @@ def eval_model(ckpt_path: str, max_tasks: int = None, use_ttt: bool = True):
             task = load_task(str(task_path))
 
             # Run solver
-            preds = solve(task_id, ckpt_path, use_ttt=use_ttt)
+            preds = solve(task_id, ckpt_path)
 
             # use test outputs if available, otherwise skip
             task_correct = 0

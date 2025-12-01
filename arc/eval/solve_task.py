@@ -6,7 +6,13 @@ import torch
 
 from arc.grids.core import Grid
 from arc.io.loader import load_task
-from arc.grids.views import ViewSpec, apply_view_grid, invert_view_answer, identity_cmap
+from arc.grids.views import (
+    ViewSpec,
+    apply_view_grid,
+    invert_view_answer,
+    identity_cmap,
+    generate_palette_permutations,
+)
 from arc.eval.poe import poe_sum
 from arc.eval.scorer import mean_logp_output
 from arc.models.tiny_lm import TinyLM, TinyLMConfig
