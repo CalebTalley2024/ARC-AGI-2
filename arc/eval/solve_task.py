@@ -210,11 +210,12 @@ def solve(task_id: str, ckpt: str):
     return preds
 
 
-def solve_fast(task_id: str, ckpt: str):
+def solve_fast(task_id: str, ckpt: str, use_ttt: bool = True):
     """
     Fast version of solve() with reduced parameters for quicker evaluation.
-    - Fewer TTT steps (10 instead of 50)
+    - Fewer TTT steps (1 instead of 50)
     - Fewer views (2 instead of 7: identity and rot90)
+    - Optional TTT (use_ttt=False skips test-time training entirely)
     - Otherwise identical to solve()
     """
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -239,15 +240,20 @@ def solve_fast(task_id: str, ckpt: str):
 
     task_grids = to_grid_dict(task)
 
-    # Test-Time Training with fewer steps
-    model, cached_weights, trainer = test_time_train_on_task(
-        base_model,
-        task,
-        device=device,
-        steps=10,
-        lr=1e-4,
-        bs=4,
-    )
+    # Test-Time Training (optional)
+    if use_ttt:
+        model, cached_weights, trainer = test_time_train_on_task(
+            base_model,
+            task,
+            device=device,
+            steps=1,
+            lr=1e-4,
+            bs=4,
+        )
+    else:
+        model = base_model
+        cached_weights = None
+        trainer = None
 
     # Only 2 views for speed
     views = [
@@ -325,6 +331,7 @@ def solve_fast(task_id: str, ckpt: str):
             indent=2
         )
 
-    trainer.restore_weights(cached_weights)
+    if trainer is not None and cached_weights is not None:
+        trainer.restore_weights(cached_weights)
 
     return preds

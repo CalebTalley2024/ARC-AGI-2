@@ -9,11 +9,13 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
+
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from arc.eval.solve_task import solve
+from arc.eval.solve_task import solve_fast as solve
 from arc.grids.core import Grid
 from arc.io.loader import load_task
 
@@ -36,14 +38,16 @@ def load_dev_tasks():
         return json.load(f)
 
 
-def eval_model(ckpt_path: str, max_tasks: int = None):
+def eval_model(ckpt_path: str, max_tasks: int = None, use_ttt: bool = True):
     """
     Evaluate model on dev tasks.
 
     Args:
         ckpt_path: Path to model checkpoint
         max_tasks: Maximum number of tasks to evaluate (None = all)
+        use_ttt: Whether to use test-time training (default: True)
     """
+    mode_str = "with TTT" if use_ttt else "WITHOUT TTT (fast mode)"
     dev_tasks = load_dev_tasks()
 
     if not dev_tasks:
@@ -53,7 +57,7 @@ def eval_model(ckpt_path: str, max_tasks: int = None):
     if max_tasks:
         dev_tasks = dev_tasks[:max_tasks]
 
-    print(f"Evaluating on {len(dev_tasks)} dev tasks")
+    print(f"Evaluating on {len(dev_tasks)} dev tasks {mode_str}")
     print(f"Checkpoint: {ckpt_path}")
     print("=" * 60)
 
@@ -77,7 +81,7 @@ def eval_model(ckpt_path: str, max_tasks: int = None):
             task = load_task(str(task_path))
 
             # Run solver
-            preds = solve(task_id, ckpt_path)
+            preds = solve(task_id, ckpt_path, use_ttt=use_ttt)
 
             # use test outputs if available, otherwise skip
             task_correct = 0
@@ -85,7 +89,7 @@ def eval_model(ckpt_path: str, max_tasks: int = None):
 
             for pred_idx, (pred_grid, test_pair) in enumerate(zip(preds, task["test"])):
                 if "output" in test_pair:
-                    gt_grid = Grid(test_pair["output"])
+                    gt_grid = Grid(np.array(test_pair["output"], dtype=np.int8))
                     task_total += 1
 
                     if grid_equal(pred_grid, gt_grid):
@@ -150,7 +154,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max-tasks", type=int, default=None, help="Maximum number of tasks to evaluate (default: all)"
     )
+    parser.add_argument(
+        "--no-ttt", action="store_true", help="Skip test-time training for faster evaluation"
+    )
 
     args = parser.parse_args()
 
-    eval_model(args.ckpt, args.max_tasks)
+    eval_model(args.ckpt, args.max_tasks, use_ttt=not args.no_ttt)
