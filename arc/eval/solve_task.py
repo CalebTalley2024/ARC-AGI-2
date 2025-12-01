@@ -82,6 +82,29 @@ def test_time_train_on_task(base_model, task_dict, device, steps=50, lr=1e-4, bs
 
     return base_model, cached, trainer
 
+
+def build_fewshot_prompt(task_grids, x_test_v: Grid, best_view: ViewSpec, mode: str = "row", max_train_examples: int = 3):
+    seq = []
+
+    train_pairs = task_grids["train"][:max_train_examples]
+    for pair in train_pairs:
+        x_tr = apply_view_grid(pair["input"], best_view)
+        y_tr = apply_view_grid(pair["output"], best_view)
+
+        sx = serialize_grid(x_tr, mode=mode)
+        sy = serialize_grid(y_tr, mode=mode)
+
+        seq.extend(sx)
+        seq.append(SEP)
+        seq.extend(sy[1:])
+        seq.append(SEP)
+
+    sx_test = serialize_grid(x_test_v, mode=mode)
+    seq.extend(sx_test)
+    seq.append(SEP)
+
+    return seq
+
 def solve(task_id: str, ckpt: str):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     base_model = load_model(ckpt, device)
@@ -165,7 +188,7 @@ def solve(task_id: str, ckpt: str):
         x_test_v = apply_view_grid(x_test, best_view)
 
         # Construct prompt: x_v + SEP
-        prompt = serialize_grid(x_test_v, mode="row") + [SEP]
+        prompt = build_fewshot_prompt(task_grids, x_test_v, best_view, mode="row")
         inp = torch.tensor(prompt, dtype=torch.long).unsqueeze(0).to(device)
 
         # Generate
@@ -295,7 +318,7 @@ def solve_fast(task_id: str, ckpt: str, use_ttt: bool = True):
     for test_idx, test_pair in enumerate(task_grids["test"]):
         x_test = test_pair["input"]
         x_test_v = apply_view_grid(x_test, best_view)
-        prompt = serialize_grid(x_test_v, mode="row") + [SEP]
+        prompt = build_fewshot_prompt(task_grids, x_test_v, best_view, mode="row")
         inp = torch.tensor(prompt, dtype=torch.long).unsqueeze(0).to(device)
 
         out = greedy_generate(model, inp, max_new_tokens=1024, eos_id=EOS)
