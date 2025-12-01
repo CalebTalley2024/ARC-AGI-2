@@ -114,10 +114,10 @@ def solve(task_id: str, ckpt: str):
         ViewSpec(geom="id", color_map=identity_cmap(), serialization="row"),
         ViewSpec(geom="rot90", color_map=identity_cmap(), serialization="row"),
         ViewSpec(geom="rot180", color_map=identity_cmap(), serialization="row"),
-        ViewSpec(geom="rot270", color_map=identity_cmap(), serialization="row"),
-        ViewSpec(geom="flip_h", color_map=identity_cmap(), serialization="row"),
-        ViewSpec(geom="flip_v", color_map=identity_cmap(), serialization="row"),
-        ViewSpec(geom="transpose", color_map=identity_cmap(), serialization="row"),
+        # ViewSpec(geom="rot270", color_map=identity_cmap(), serialization="row"),
+        # ViewSpec(geom="flip_h", color_map=identity_cmap(), serialization="row"),
+        # ViewSpec(geom="flip_v", color_map=identity_cmap(), serialization="row"),
+        # ViewSpec(geom="transpose", color_map=identity_cmap(), serialization="row"),
     ]
 
     x0 = task_grids["train"][0]["input"]
@@ -155,7 +155,7 @@ def solve(task_id: str, ckpt: str):
     for test_idx, test_pair in enumerate(task_grids["test"]):
         x_test = test_pair["input"]
 
-        # 1. Apply best view
+        # Apply best view
         x_test_v = apply_view_grid(x_test, best_view)
 
         # Construct prompt: x_v + SEP
