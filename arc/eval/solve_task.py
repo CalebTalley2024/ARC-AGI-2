@@ -187,12 +187,19 @@ def solve(task_id: str, ckpt: str):
         # Apply best view
         x_test_v = apply_view_grid(x_test, best_view)
 
-        # Construct prompt: x_v + SEP
+        # Construct prompt: x_v + SEP (few-shot with train examples)
         prompt = build_fewshot_prompt(task_grids, x_test_v, best_view, mode="row")
+
+        # Ensure prompt + generated tokens do not exceed model max_len
+        max_len = getattr(model, "cfg", None).max_len if getattr(model, "cfg", None) is not None else 2048
+        if len(prompt) > max_len:
+            prompt = prompt[-max_len:]
+        max_new = max(1, max_len - len(prompt))
+
         inp = torch.tensor(prompt, dtype=torch.long).unsqueeze(0).to(device)
 
         # Generate
-        out = greedy_generate(model, inp, max_new_tokens=1024, eos_id=EOS)
+        out = greedy_generate(model, inp, max_new_tokens=max_new, eos_id=EOS)
         ids = out.squeeze(0).tolist()
 
         # Extract Y part
@@ -319,9 +326,15 @@ def solve_fast(task_id: str, ckpt: str, use_ttt: bool = True):
         x_test = test_pair["input"]
         x_test_v = apply_view_grid(x_test, best_view)
         prompt = build_fewshot_prompt(task_grids, x_test_v, best_view, mode="row")
+
+        max_len = getattr(model, "cfg", None).max_len if getattr(model, "cfg", None) is not None else 2048
+        if len(prompt) > max_len:
+            prompt = prompt[-max_len:]
+        max_new = max(1, max_len - len(prompt))
+
         inp = torch.tensor(prompt, dtype=torch.long).unsqueeze(0).to(device)
 
-        out = greedy_generate(model, inp, max_new_tokens=1024, eos_id=EOS)
+        out = greedy_generate(model, inp, max_new_tokens=max_new, eos_id=EOS)
         ids = out.squeeze(0).tolist()
 
         prompt_len = len(prompt)
