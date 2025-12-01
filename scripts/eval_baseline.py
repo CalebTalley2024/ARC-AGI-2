@@ -75,7 +75,7 @@ def eval_model(ckpt_path: str, max_tasks: int = None, use_ttt: bool = True):
                 task_path = project_root / "data" / "raw" / "arc" / "training" / f"{task_id}.json"
 
             if not task_path.exists():
-                print(f"  ✗ Task file not found: {task_id}")
+                print(f"Task file not found: {task_id}")
                 continue
 
             task = load_task(str(task_path))
@@ -95,12 +95,12 @@ def eval_model(ckpt_path: str, max_tasks: int = None, use_ttt: bool = True):
                     if grid_equal(pred_grid, gt_grid):
                         task_correct += 1
                         correct += 1
-                        print(f"  ✓ Test {pred_idx + 1}: CORRECT")
+                        print(f"Test {pred_idx + 1}: CORRECT")
                     else:
-                        print(f"  ✗ Test {pred_idx + 1}: INCORRECT")
+                        print(f"Test {pred_idx + 1}: INCORRECT")
                         print(f"    Predicted shape: {pred_grid.shape}, GT shape: {gt_grid.shape}")
                 else:
-                    print(f"  - Test {pred_idx + 1}: No ground truth available")
+                    print(f"Test {pred_idx + 1}: No ground truth available")
 
             total += task_total
 
@@ -109,10 +109,10 @@ def eval_model(ckpt_path: str, max_tasks: int = None, use_ttt: bool = True):
                 {"task_id": task_id, "correct": task_correct, "total": task_total, "accuracy": task_acc}
             )
 
-            print(f"  Task accuracy: {task_correct}/{task_total} = {task_acc:.1%}")
+            print(f"Task accuracy: {task_correct}/{task_total} = {task_acc:.1%}")
 
         except Exception as e:
-            print(f"  ✗ Error processing task {task_id}: {e}")
+            print(f"Error processing task {task_id}: {e}")
             import traceback
 
             traceback.print_exc()
