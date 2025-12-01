@@ -98,8 +98,11 @@ def deserialize_grid(seq: List[int], mode: str = "row") -> Grid:
         i += 1
 
     expected_pixels = H * W
-    if len(pix) != expected_pixels:
-        raise ValueError(f"Pixel count mismatch: got {len(pix)}, expected {expected_pixels} for {H}x{W} grid")
+    
+    if len(pix) < expected_pixels:
+        raise ValueError(f"Pixel count too few: got {len(pix)}, expected {expected_pixels} for {H}x{W} grid")
+    elif len(pix) > expected_pixels:
+        pix = pix[:expected_pixels]
 
     arr = np.array(pix, dtype=np.int64)
     if mode == "row":
