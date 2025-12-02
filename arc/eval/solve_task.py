@@ -59,7 +59,10 @@ def generate_and_score(
     prompt = pack_example(x_grid, y_grid, mode=mode) + [SEP]
     inp = torch.tensor(prompt, dtype=torch.long).unsqueeze(0).to(device)
 
-    out = greedy_generate(model, inp, max_new_tokens=max_new, eos_id=EOS)  # (1, T')
+    max_allowed_new = max(1, max_new - inp.size(1))
+    eff_max_new = min(max_new, max_allowed_new)
+
+    out = greedy_generate(model, inp, max_new_tokens=eff_max_new, eos_id=EOS)  # (1, T')
 
     score = mean_logp_output(model, out.clone(), sep_token_id=SEP)
 
