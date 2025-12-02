@@ -18,7 +18,7 @@ from arc.models.train import ArcPairsDataset, Collate
 from arc.utils.constants import TRAINING_CONFIG
 
 
-'''
+"""
 # Configuration for TTT
 ttt_config = {
     "augmentation_multiplier": 5,  # Generate 5 augmented copies per example
@@ -33,19 +33,21 @@ ttt = TestTimeTrainer(
     steps=20,  # 10-50 steps is usually sufficient
     augmentation_config=ttt_config
 )
-'''
+"""
+
+
 class TestTimeTrainer:
     """
     Handles temporary fine-tuning of a model on a specific task's examples.
     """
 
     def __init__(
-            self,
-            model: nn.Module,
-            learning_rate: float = 1e-4,
-            steps: int = 10,
-            batch_size: int = 4,
-            augmentation_config: Dict = None
+        self,
+        model: nn.Module,
+        learning_rate: float = 1e-4,
+        steps: int = 10,
+        batch_size: int = 4,
+        augmentation_config: Dict = None,
     ):
         self.model = model
         self.device = next(model.parameters()).device
@@ -80,17 +82,12 @@ class TestTimeTrainer:
             tasks=[task],
             mode=TRAINING_CONFIG["serialization_mode"],
             max_len=max_len,
-            augmentation_config=self.augmentation_config
+            augmentation_config=self.augmentation_config,
         )
 
         # If the task has too few examples, we might not need a dataloader,
         # but using one ensures consistency with your main training loop.
-        dl = DataLoader(
-            dataset,
-            batch_size=min(len(dataset), self.batch_size),
-            shuffle=True,
-            collate_fn=Collate()
-        )
+        dl = DataLoader(dataset, batch_size=min(len(dataset), self.batch_size), shuffle=True, collate_fn=Collate())
 
         # 2. Setup Optimizer (Reset every time TTT is called)
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)

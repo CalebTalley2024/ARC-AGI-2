@@ -111,7 +111,7 @@ def build_fewshot_prompt(
     return seq
 
 
-def solve(task_id: str, ckpt: str):
+def solve(task_id: str, ckpt: str, use_ttt: bool = True):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     base_model = load_model(ckpt, device)
 
@@ -137,7 +137,8 @@ def solve(task_id: str, ckpt: str):
     task_grids = to_grid_dict(task)
 
     # ttt implementation
-    model, cached_weights, trainer = test_time_train_on_task(
+    if use_ttt:
+        model, cached_weights, trainer = test_time_train_on_task(
         base_model,
         task,
         device=device,
@@ -145,6 +146,10 @@ def solve(task_id: str, ckpt: str):
         lr=1e-4,
         bs=4,
     )
+    else:
+        model = base_model
+        cached_weights = None
+        trainer = None
 
     # multiple views
     views = [
@@ -255,13 +260,6 @@ def solve(task_id: str, ckpt: str):
 
 
 def solve_fast(task_id: str, ckpt: str, use_ttt: bool = True):
-    """
-    Fast version of solve() with reduced parameters for quicker evaluation.
-    - Fewer TTT steps (1 instead of 50)
-    - Fewer views (2 instead of 7: identity and rot90)
-    - Optional TTT (use_ttt=False skips test-time training entirely)
-    - Otherwise identical to solve()
-    """
     device = "cuda" if torch.cuda.is_available() else "cpu"
     base_model = load_model(ckpt, device)
 
