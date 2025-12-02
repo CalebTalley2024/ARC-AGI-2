@@ -21,6 +21,9 @@ from arc.models.infer import greedy_generate
 from arc.serialize.task_tokenizer import deserialize_grid, serialize_grid, SEP, EOS
 from arc.utils.constants import BOS
 
+from arc.serialize.task_tokenizer import pack_example
+
+
 def load_task_by_id(task_id: str) -> Dict[str, Any]:
     paths = [
         Path(f"data/raw/arc/evaluation/{task_id}.json"),
@@ -30,26 +33,30 @@ def load_task_by_id(task_id: str) -> Dict[str, Any]:
             return load_task(str(p))
     raise FileNotFoundError(f"Task {task_id} not found in raw data")
 
+
 def load_model(ckpt_path: str, device: str):
-    ckpt = torch.load(ckpt_path, map_location='cpu')
-    if 'cfg' in ckpt:
-        cfg = TinyLMConfig(**ckpt['cfg'])
+    ckpt = torch.load(ckpt_path, map_location="cpu")
+    if "cfg" in ckpt:
+        cfg = TinyLMConfig(**ckpt["cfg"])
     else:
         cfg = TinyLMConfig()
 
     model = TinyLM(cfg)
-    model.load_state_dict(ckpt['model'])
+    model.load_state_dict(ckpt["model"])
     model.to(device)
     model.eval()
     return model
 
-def generate_and_score(model, x_grid: Grid, y_grid: Grid, device="cpu", mode: str = "row", max_new: int = 1024) -> Tuple[Grid, float]:
-    '''
+
+def generate_and_score(
+    model, x_grid: Grid, y_grid: Grid, device="cpu", mode: str = "row", max_new: int = 1024
+) -> Tuple[Grid, float]:
+    """
     Generate and score a single pair (input -> output).
     Used for selecting the best view based on training data.
-    '''
+    """
 
-    prompt = serialize_grid(x_grid, mode=mode) + [SEP]
+    prompt = pack_example(x_grid, y_grid, mode=mode) + [SEP]
     inp = torch.tensor(prompt, dtype=torch.long).unsqueeze(0).to(device)
 
     out = greedy_generate(model, inp, max_new_tokens=max_new, eos_id=EOS)  # (1, T')
@@ -70,20 +77,18 @@ def generate_and_score(model, x_grid: Grid, y_grid: Grid, device="cpu", mode: st
 
     return g_pred, float(score)
 
+
 def test_time_train_on_task(base_model, task_dict, device, steps=50, lr=1e-4, bs=4):
-    trainer = TestTimeTrainer(
-        model=base_model,
-        learning_rate=lr,
-        steps=steps,
-        batch_size=bs
-    )
+    trainer = TestTimeTrainer(model=base_model, learning_rate=lr, steps=steps, batch_size=bs)
     cached = trainer.cache_weights()
     trainer.train_on_task(task_dict)
 
     return base_model, cached, trainer
 
 
-def build_fewshot_prompt(task_grids, x_test_v: Grid, best_view: ViewSpec, mode: str = "row", max_train_examples: int = 3):
+def build_fewshot_prompt(
+    task_grids, x_test_v: Grid, best_view: ViewSpec, mode: str = "row", max_train_examples: int = 3
+):
     seq = []
 
     train_pairs = task_grids["train"][:max_train_examples]
@@ -105,8 +110,9 @@ def build_fewshot_prompt(task_grids, x_test_v: Grid, best_view: ViewSpec, mode: 
 
     return seq
 
+
 def solve(task_id: str, ckpt: str):
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     base_model = load_model(ckpt, device)
 
     task = load_task_by_id(task_id)
@@ -115,14 +121,16 @@ def solve(task_id: str, ckpt: str):
     def to_grid_dict(t):
         t_new = {"train": [], "test": []}
         for pair in t["train"]:
-            t_new["train"].append({
-                "input": Grid(np.array(pair["input"], dtype=np.int8)),
-                "output": Grid(np.array(pair["output"], dtype=np.int8))
-            })
+            t_new["train"].append(
+                {
+                    "input": Grid(np.array(pair["input"], dtype=np.int8)),
+                    "output": Grid(np.array(pair["output"], dtype=np.int8)),
+                }
+            )
         for pair in t["test"]:
             p = {"input": Grid(np.array(pair["input"], dtype=np.int8))}
             if "output" in pair:
-                 p["output"] = Grid(np.array(pair["output"], dtype=np.int8))
+                p["output"] = Grid(np.array(pair["output"], dtype=np.int8))
             t_new["test"].append(p)
         return t_new
 
@@ -233,11 +241,11 @@ def solve(task_id: str, ckpt: str):
                     "view_scores": all_scores,
                     "poe_sum": poe_score,
                     "best_view_score": best_view_score,
-                    "selected_view": best_view.geom
+                    "selected_view": best_view.geom,
                 },
             },
             f,
-            indent=2
+            indent=2,
         )
 
     # Restore weights (cleanup)
@@ -254,7 +262,7 @@ def solve_fast(task_id: str, ckpt: str, use_ttt: bool = True):
     - Optional TTT (use_ttt=False skips test-time training entirely)
     - Otherwise identical to solve()
     """
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     base_model = load_model(ckpt, device)
 
     task = load_task_by_id(task_id)
@@ -263,10 +271,12 @@ def solve_fast(task_id: str, ckpt: str, use_ttt: bool = True):
     def to_grid_dict(t):
         t_new = {"train": [], "test": []}
         for pair in t["train"]:
-            t_new["train"].append({
-                "input": Grid(np.array(pair["input"], dtype=np.int8)),
-                "output": Grid(np.array(pair["output"], dtype=np.int8))
-            })
+            t_new["train"].append(
+                {
+                    "input": Grid(np.array(pair["input"], dtype=np.int8)),
+                    "output": Grid(np.array(pair["output"], dtype=np.int8)),
+                }
+            )
         for pair in t["test"]:
             p = {"input": Grid(np.array(pair["input"], dtype=np.int8))}
             if "output" in pair:
@@ -366,11 +376,11 @@ def solve_fast(task_id: str, ckpt: str, use_ttt: bool = True):
                     "view_scores": all_scores,
                     "poe_sum": poe_score,
                     "best_view_score": best_view_score,
-                    "selected_view": best_view.geom
+                    "selected_view": best_view.geom,
                 },
             },
             f,
-            indent=2
+            indent=2,
         )
 
     if trainer is not None and cached_weights is not None:

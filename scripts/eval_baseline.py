@@ -29,7 +29,10 @@ def grid_equal(pred_grid: Grid, gt_grid: Grid) -> bool:
 
 def load_dev_tasks():
     """Load dev task IDs from processed data."""
+
     dev_tasks_file = project_root / "data" / "processed" / "dev_tasks.json"
+    # dev_tasks_file = project_root / "data" / "raw" / "arc" / "training.txt"
+
     if not dev_tasks_file.exists():
         print(f"Warning: {dev_tasks_file} not found, using empty list")
         return []
@@ -67,7 +70,7 @@ def eval_model(ckpt_path: str, max_tasks: int = None, use_ttt: bool = True):
 
     for i, task_id in enumerate(dev_tasks, 1):
         print(f"\n[{i}/{len(dev_tasks)}] Processing task: {task_id}")
-
+        
         try:
             # Load ground truth
             task_path = project_root / "data" / "raw" / "arc" / "evaluation" / f"{task_id}.json"
@@ -154,9 +157,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max-tasks", type=int, default=None, help="Maximum number of tasks to evaluate (default: all)"
     )
-    parser.add_argument(
-        "--no-ttt", action="store_true", help="Skip test-time training for faster evaluation"
-    )
+    parser.add_argument("--no-ttt", action="store_true", help="Skip test-time training for faster evaluation")
 
     args = parser.parse_args()
 
