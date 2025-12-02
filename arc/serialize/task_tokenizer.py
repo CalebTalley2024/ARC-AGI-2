@@ -56,59 +56,31 @@ def serialize_grid(g: Grid, mode: str = "row") -> List[int]:
 
 
 def deserialize_grid(seq: List[int], mode: str = "row") -> Grid:
-    if not seq or seq[0] != BOS or len(seq) < 3:
-        raise ValueError("Malformed sequence: missing BOS/shape tokens")
-
+    assert seq[0] == BOS
     W = (seq[1] - TOK_W_BASE) + 1
     H = (seq[2] - TOK_H_BASE) + 1
-
-    if not (1 <= W <= MAX_GRID_SIZE and 1 <= H <= MAX_GRID_SIZE):
-        raise ValueError("Invalid grid shape; ARC uses <= 30x30 and > 0")
-
-    try:
-        sep1 = seq.index(SEP, 3)
-    except ValueError:
-        raise ValueError("Malformed sequence: missing first separator")
-
-    try:
-        sep2 = seq.index(SEP, sep1 + 1)
-    except ValueError:
-        raise ValueError("Malformed sequence: missing second separator")
-
-    try:
-        eos_idx = seq.index(EOS, sep2 + 1)
-    except ValueError:
-        raise ValueError("Malformed sequence: missing EOS token")
-
-    pixel_tokens = seq[sep2 + 1 : eos_idx]
-
+    # find separators
+    i = 3
+    # print(SEP, seq[i])
+    assert seq[i] == SEP; i += 1
+    # consume color inventory until SEP
+    while seq[i] != SEP:
+        i += 1
+    i += 1  # skip second SEP
+    # remaining until EOS
     pix = []
-    for tok in pixel_tokens:
-        c = tok - TOK_PIXEL_BASE
-        if 0 <= c < NUM_COLORS:
-            pix.append(c)
-        # skip invalid pixel tokens rather than failing the entire decode
-
-    expected = H * W
-    if len(pix) < expected:
-        pix.extend([0] * (expected - len(pix)))
-    elif len(pix) > expected:
-        pix = pix[:expected]
-
+    while seq[i] != EOS:
+        pix.append(seq[i] - TOK_PIXEL_BASE)
+        i += 1
     arr = np.array(pix, dtype=np.int64)
     if mode == "row":
         g = arr.reshape(H, W)
-    elif mode == "col":
-        g = arr.reshape(W, H).T
     else:
-        raise ValueError("mode must be 'row' or 'col'")
-
-    return Grid(g)
+        g = arr.reshape(W, H).T
+    return g
 
 
 # ---- Pair (X->Y) example packing ----
-
-
 def pack_example(x: Grid, y: Grid, mode: str = "row") -> List[int]:
     # input then output separated by SEP
     sx = serialize_grid(x, mode)

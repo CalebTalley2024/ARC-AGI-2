@@ -75,6 +75,7 @@ def generate_and_score(
 
     try:
         g_pred = deserialize_grid(y_seq, mode=mode)
+        g_pred = Grid(g_pred)
     except Exception:
         g_pred = x_grid
 
@@ -225,12 +226,12 @@ def solve(task_id: str, ckpt: str, use_ttt: bool = True):
 
         try:
             g_pred_v = deserialize_grid(y_seq, mode="row")
+            g_pred_v = Grid(g_pred_v)
         except Exception as e:
             print(f"Warning: Failed to deserialize test output {test_idx}: {e}")
             print(f"  y_seq length: {len(y_seq)}, first few tokens: {y_seq[:10]}")
-            g_pred_v = x_test_v  # Fallback
+            g_pred_v = x_test_v
 
-        # 3. Invert view
         g_pred = invert_view_answer(g_pred_v, best_view)
         preds.append(g_pred)
 
@@ -355,6 +356,7 @@ def solve_fast(task_id: str, ckpt: str, use_ttt: bool = True):
 
         try:
             g_pred_v = deserialize_grid(y_seq, mode="row")
+            g_pred_v = Grid(g_pred_v)
         except Exception as e:
             print(f"Warning: Failed to deserialize test output {test_idx}: {e}")
             g_pred_v = x_test_v
