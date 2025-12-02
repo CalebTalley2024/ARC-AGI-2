@@ -227,6 +227,7 @@ def solve(task_id: str, ckpt: str, use_ttt: bool = True):
             g_pred_v = deserialize_grid(y_seq, mode="row")
         except Exception as e:
             print(f"Warning: Failed to deserialize test output {test_idx}: {e}")
+            print(f"  y_seq length: {len(y_seq)}, first few tokens: {y_seq[:10]}")
             g_pred_v = x_test_v  # Fallback
 
         # 3. Invert view

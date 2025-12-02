@@ -56,41 +56,53 @@ def serialize_grid(g: Grid, mode: str = "row") -> List[int]:
 
 
 def deserialize_grid(seq: List[int], mode: str = "row") -> Grid:
-    assert seq[0] == BOS
+    if len(seq) < 3 or seq[0] != BOS:
+        raise ValueError("Malformed sequence: missing BOS/shape tokens")
+    
     W = (seq[1] - TOK_W_BASE) + 1
     H = (seq[2] - TOK_H_BASE) + 1
-    # find separators
+
+    def _find_token(start: int, token: int) -> int | None:
+        for idx in range(start, len(seq)):
+            if seq[idx] == token:
+                return idx
+        return None
+
     i = 3
-    # print(SEP, seq[i])
-    assert seq[i] == SEP; i += 1
-    # consume color inventory until SEP
-    while seq[i] != SEP:
+    first_sep = _find_token(i, SEP)
+    if first_sep is None:
+        return Grid(np.zeros((H, W), dtype=np.int8))
+    i = first_sep + 1
+
+    second_sep = _find_token(i, SEP)
+    if second_sep is None:
+        return Grid(np.zeros((H, W), dtype=np.int8))
+    i = second_sep + 1  # skip color inventory
+
+    pix: List[int] = []
+    while i < len(seq) and seq[i] != EOS:
+        pix_val = seq[i] - TOK_PIXEL_BASE
+        pix.append(int(np.clip(pix_val, 0, NUM_COLORS - 1)))
         i += 1
-    i += 1  # skip second SEP
-    # remaining until EOS
-    pix = []
-    while seq[i] != EOS:
-        pix.append(seq[i] - TOK_PIXEL_BASE)
-        i += 1
-    arr = np.array(pix, dtype=np.int64)
+
+    total = H * W
+    if len(pix) < total:
+        pix.extend([0] * (total - len(pix)))
+    elif len(pix) > total:
+        pix = pix[:total]
+
+    arr = np.array(pix, dtype=np.int8)
     if mode == "row":
-        if len(arr)>=H*W:
-            arr = arr[:H*W]
-        if len(arr)<H*W:
-            arr = np.pad(arr, (0, H*W-len(arr)), mode='constant', constant_values=0)
         g = arr.reshape(H, W)
-    else:
-        if len(arr)>=H*W:
-            arr = arr[:H*W]
-        if len(arr)<H*W:
-            arr = np.pad(arr, (0, H*W-len(arr)), mode='constant', constant_values=0)
+    elif mode == "col":
         g = arr.reshape(W, H).T
-    return g
+    else:
+        raise ValueError("mode must be 'row' or 'col'")
+
+    return Grid(g)
 
 
 # ---- Pair (X->Y) example packing ----
-
-
 def pack_example(x: Grid, y: Grid, mode: str = "row") -> List[int]:
     # input then output separated by SEP
     sx = serialize_grid(x, mode)
