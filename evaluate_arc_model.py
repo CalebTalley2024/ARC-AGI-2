@@ -89,7 +89,7 @@ def evaluate_poe(model, x, y, device="cpu"):
     errors = []
 
     for mode in modes:
-        g_pred, score, error = generate_and_score_with_mode(model, x, y, device=device, mode=mode, max_new=512)
+        g_pred, score, error = generate_and_score_with_mode(model, x, y, device=device, mode="row", max_new=512)
         if error is None and g_pred is not None:
             predictions.append(g_pred)
             scores.append(score)
@@ -368,8 +368,6 @@ def evaluate_dataset(
 # ============================================================================
 # REPORTING
 # ============================================================================
-
-
 def print_results_table(results: Dict):
     """Print formatted results table."""
     print(f"\n{'='*80}")
