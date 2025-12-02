@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
+from typing import List
 
 import numpy as np
 
@@ -56,42 +56,46 @@ def serialize_grid(g: Grid, mode: str = "row") -> List[int]:
 
 
 def deserialize_grid(seq: List[int], mode: str = "row") -> Grid:
-    if len(seq) < 3 or seq[0] != BOS:
+    if not seq or seq[0] != BOS or len(seq) < 3:
         raise ValueError("Malformed sequence: missing BOS/shape tokens")
-    
+
     W = (seq[1] - TOK_W_BASE) + 1
     H = (seq[2] - TOK_H_BASE) + 1
 
-    def _find_token(start: int, token: int) -> int | None:
-        for idx in range(start, len(seq)):
-            if seq[idx] == token:
-                return idx
-        return None
+    if not (1 <= W <= MAX_GRID_SIZE and 1 <= H <= MAX_GRID_SIZE):
+        raise ValueError("Invalid grid shape; ARC uses <= 30x30 and > 0")
 
-    i = 3
-    first_sep = _find_token(i, SEP)
-    if first_sep is None:
-        return Grid(np.zeros((H, W), dtype=np.int8))
-    i = first_sep + 1
+    try:
+        sep1 = seq.index(SEP, 3)
+    except ValueError:
+        raise ValueError("Malformed sequence: missing first separator")
 
-    second_sep = _find_token(i, SEP)
-    if second_sep is None:
-        return Grid(np.zeros((H, W), dtype=np.int8))
-    i = second_sep + 1  # skip color inventory
+    try:
+        sep2 = seq.index(SEP, sep1 + 1)
+    except ValueError:
+        raise ValueError("Malformed sequence: missing second separator")
 
-    pix: List[int] = []
-    while i < len(seq) and seq[i] != EOS:
-        pix_val = seq[i] - TOK_PIXEL_BASE
-        pix.append(int(np.clip(pix_val, 0, NUM_COLORS - 1)))
-        i += 1
+    try:
+        eos_idx = seq.index(EOS, sep2 + 1)
+    except ValueError:
+        raise ValueError("Malformed sequence: missing EOS token")
 
-    total = H * W
-    if len(pix) < total:
-        pix.extend([0] * (total - len(pix)))
-    elif len(pix) > total:
-        pix = pix[:total]
+    pixel_tokens = seq[sep2 + 1 : eos_idx]
 
-    arr = np.array(pix, dtype=np.int8)
+    pix = []
+    for tok in pixel_tokens:
+        c = tok - TOK_PIXEL_BASE
+        if 0 <= c < NUM_COLORS:
+            pix.append(c)
+        # skip invalid pixel tokens rather than failing the entire decode
+
+    expected = H * W
+    if len(pix) < expected:
+        pix.extend([0] * (expected - len(pix)))
+    elif len(pix) > expected:
+        pix = pix[:expected]
+
+    arr = np.array(pix, dtype=np.int64)
     if mode == "row":
         g = arr.reshape(H, W)
     elif mode == "col":
@@ -103,6 +107,8 @@ def deserialize_grid(seq: List[int], mode: str = "row") -> Grid:
 
 
 # ---- Pair (X->Y) example packing ----
+
+
 def pack_example(x: Grid, y: Grid, mode: str = "row") -> List[int]:
     # input then output separated by SEP
     sx = serialize_grid(x, mode)
