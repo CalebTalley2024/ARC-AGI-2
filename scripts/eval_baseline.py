@@ -30,15 +30,15 @@ def grid_equal(pred_grid: Grid, gt_grid: Grid) -> bool:
 def load_dev_tasks():
     """Load dev task IDs from processed data."""
 
-    dev_tasks_file = project_root / "data" / "processed" / "dev_tasks.json"
-    # dev_tasks_file = project_root / "data" / "raw" / "arc" / "training.txt"
+    # Use all evaluation tasks from data/raw/arc/evaluation
+    eval_dir = project_root / "data" / "raw" / "arc" / "evaluation"
 
-    if not dev_tasks_file.exists():
-        print(f"Warning: {dev_tasks_file} not found, using empty list")
+    if not eval_dir.exists():
+        print(f"Warning: {eval_dir} not found, using empty list")
         return []
 
-    with open(dev_tasks_file) as f:
-        return json.load(f)
+    task_ids = sorted(p.stem for p in eval_dir.glob("*.json"))
+    return task_ids
 
 
 def eval_model(ckpt_path: str, max_tasks: int = None, use_ttt: bool = True):
@@ -97,7 +97,6 @@ def eval_model(ckpt_path: str, max_tasks: int = None, use_ttt: bool = True):
 
                     if grid_equal(pred_grid, gt_grid):
                         task_correct += 1
-                        correct += 1
                         print(f"Test {pred_idx + 1}: CORRECT")
                     else:
                         print(f"Test {pred_idx + 1}: INCORRECT")
@@ -105,7 +104,9 @@ def eval_model(ckpt_path: str, max_tasks: int = None, use_ttt: bool = True):
                 else:
                     print(f"Test {pred_idx + 1}: No ground truth available")
 
+            # Only update global counters after the task finishes without exception
             total += task_total
+            correct += task_correct
 
             task_acc = task_correct / task_total if task_total > 0 else 0.0
             task_results.append(
