@@ -49,7 +49,7 @@ def load_model(ckpt_path: str, device: str):
 
 
 def generate_and_score(
-    model, x_grid: Grid, y_grid: Grid, device="cpu", mode: str = "row", max_new: int = 1024
+    model, x_grid: Grid, y_grid: Grid, device="cpu", mode: str = "row", max_new: int = 2048
 ) -> Tuple[Grid, float]:
     """
     Generate and score a single pair (input -> output).
