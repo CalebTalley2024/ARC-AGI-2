@@ -70,7 +70,7 @@ def eval_model(ckpt_path: str, max_tasks: int = None, use_ttt: bool = True):
 
     for i, task_id in enumerate(dev_tasks, 1):
         print(f"\n[{i}/{len(dev_tasks)}] Processing task: {task_id}")
-        
+
         try:
             # Load ground truth
             task_path = project_root / "data" / "raw" / "arc" / "evaluation" / f"{task_id}.json"
@@ -84,7 +84,7 @@ def eval_model(ckpt_path: str, max_tasks: int = None, use_ttt: bool = True):
             task = load_task(str(task_path))
 
             # Run solver
-            preds = solve(task_id, ckpt_path)
+            preds = solve(task_id, ckpt_path, use_ttt=use_ttt)
 
             # use test outputs if available, otherwise skip
             task_correct = 0
