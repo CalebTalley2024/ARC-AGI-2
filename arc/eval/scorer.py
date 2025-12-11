@@ -21,7 +21,6 @@ def token_logprobs(model, input_ids: torch.LongTensor) -> torch.Tensor:
     return torch.cat([z, logp_next], dim=1).squeeze(0)
 
 # compute mean log-prob over the output segment (after the big SEP between X and Y)
-
 def mean_logp_output(model, input_ids: torch.LongTensor, sep_token_id: int) -> float:
     lp = token_logprobs(model, input_ids)
     ids = input_ids.squeeze(0).tolist()

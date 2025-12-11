@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 """
-Evaluation script for ARC-AGI baseline model.
-Runs solve() on dev tasks and computes exact-match accuracy.
+ARC-AGI Baseline Evaluation Script
+=================================
+
+Evaluates baseline model on dev tasks and computes exact-match accuracy.
+Strategies adapted to maximized performance on dev tasks.
+Runs solve() on each task and compares predictions against ground truth.
+
+Usage:
+    python eval_baseline.py --help
 """
 
 import argparse

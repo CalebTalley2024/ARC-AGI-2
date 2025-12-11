@@ -4,13 +4,6 @@ ARC-AGI Model Evaluation Script
 
 Comprehensive evaluation of TinyLM models on the full ARC-AGI dataset.
 
-Features:
-- Multiple evaluation strategies: Baseline, TTT, PoE, TTT+PoE
-- Separate results for training and evaluation datasets
-- Detailed success/failure tracking with reasons
-- JSON output with structured results
-- Progress tracking and time estimation
-
 Usage:
     python evaluate_arc_model.py --help
 """
@@ -40,9 +33,7 @@ from arc.models.ttt import TestTimeTrainer
 from arc.eval.poe import poe_sum
 
 
-# ============================================================================
 # CORE EVALUATION FUNCTIONS
-# ============================================================================
 
 
 def generate_and_score_with_mode(model, x_grid, y_grid, device="cpu", mode: str = "row", max_new: int = 512):
@@ -168,9 +159,7 @@ def evaluate_ttt_poe(model, task, test_idx, device="cpu", ttt_config=None):
         model.load_state_dict(original_state)
 
 
-# ============================================================================
 # MODEL LOADING
-# ============================================================================
 
 
 def load_model(model_path: str, device: str = "cpu"):
@@ -191,9 +180,7 @@ def load_model(model_path: str, device: str = "cpu"):
     return model, ckpt.get("step", "unknown"), cfg
 
 
-# ============================================================================
 # EVALUATION RUNNER
-# ============================================================================
 
 
 def evaluate_dataset(
@@ -365,9 +352,7 @@ def evaluate_dataset(
     return results
 
 
-# ============================================================================
 # REPORTING
-# ============================================================================
 def print_results_table(results: Dict):
     """Print formatted results table."""
     print(f"\n{'='*80}")
@@ -414,9 +399,7 @@ def save_results(all_results: Dict, output_path: str):
     print(f"\n✓ Results saved to: {output_path}")
 
 
-# ============================================================================
 # MAIN
-# ============================================================================
 
 
 def main():
@@ -427,13 +410,13 @@ def main():
 Examples:
   # Baseline only on training set (quick test)
   python evaluate_arc_model.py --model best.pt --strategies baseline --dataset training --max-tasks 100
-  
+
   # All strategies on evaluation set
   python evaluate_arc_model.py --model best.pt --strategies baseline poe ttt ttt_poe --dataset evaluation
-  
+
   # Full evaluation on both datasets
   python evaluate_arc_model.py --model best.pt --strategies baseline poe ttt ttt_poe --dataset both
-  
+
   # Baseline on both datasets (fastest)
   python evaluate_arc_model.py --model best.pt --strategies baseline --dataset both
         """,

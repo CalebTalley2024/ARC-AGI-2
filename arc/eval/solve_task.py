@@ -201,10 +201,10 @@ def solve(task_id: str, ckpt: str, use_ttt: bool = True):
     for test_idx, test_pair in enumerate(task_grids["test"]):
         x_test = test_pair["input"]
 
-        # Apply best view
+        # apply best view
         x_test_v = apply_view_grid(x_test, best_view)
 
-        # Construct prompt: x_v + SEP (few-shot with train examples)
+        # construct prompt: x_v + SEP (few-shot with train examples)
         prompt = build_fewshot_prompt(task_grids, x_test_v, best_view, mode="row")
 
         # Ensure prompt + generated tokens do not exceed model max_len
@@ -215,11 +215,11 @@ def solve(task_id: str, ckpt: str, use_ttt: bool = True):
 
         inp = torch.tensor(prompt, dtype=torch.long).unsqueeze(0).to(device)
 
-        # Generate
+        # generate
         out = greedy_generate(model, inp, max_new_tokens=max_new, eos_id=EOS)
         ids = out.squeeze(0).tolist()
 
-        # Extract Y part
+        # extract Y part
         prompt_len = len(prompt)
         y_tokens = ids[prompt_len:]
         y_seq = [BOS] + y_tokens
