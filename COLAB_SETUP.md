@@ -71,23 +71,23 @@ from sklearn import datasets
 import plotly.graph_objects as go
 
 # Print versions
-print(f"🔥 PyTorch: {torch.__version__}")
-print(f"👁️  TorchVision: {torchvision.__version__}")
-print(f"🔊 TorchAudio: {torchaudio.__version__}")
-print(f"🔢 NumPy: {np.__version__}")
-print(f"🐼 Pandas: {pd.__version__}")
-print(f"📊 Matplotlib: {plt.matplotlib.__version__}")
-print(f"🎨 Seaborn: {sns.__version__}")
-print(f"🤗 Transformers: {transformers.__version__}")
-print(f"🧠 Scikit-learn: {sklearn.__version__}")
-print(f"📊 Plotly: {go.__version__}")
+print(f"PyTorch: {torch.__version__}")
+print(f"TorchVision: {torchvision.__version__}")
+print(f"TorchAudio: {torchaudio.__version__}")
+print(f"NumPy: {np.__version__}")
+print(f"Pandas: {pd.__version__}")
+print(f"Matplotlib: {plt.matplotlib.__version__}")
+print(f"Seaborn: {sns.__version__}")
+print(f"Transformers: {transformers.__version__}")
+print(f"Scikit-learn: {sklearn.__version__}")
+print(f"Plotly: {go.__version__}")
 
 # Test PyTorch CUDA availability
 print(f"🚀 CUDA available: {torch.cuda.is_available()}")
 if torch.cuda.is_available():
     print(f"🔥 GPU: {torch.cuda.get_device_name(0)}")
 
-print("✅ All packages verified! Ready for ARC-AGI research.")
+print(" All packages verified! Ready for ARC-AGI research.")
 ```
 
 ## Key Features
@@ -143,4 +143,4 @@ After setup, you can clone and use the ARC-AGI-2 repository:
 !pip install -e .
 ```
 
-Happy researching! 🚀
+Happy researching! 

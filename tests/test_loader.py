@@ -32,9 +32,7 @@ def test_load_5_random_tasks():
     """Test loading 5 random tasks and validate counts, shapes, color ranges."""
     # Get all training files
     training_files = list(Path("data/raw/arc/training").glob("*.json"))
-    assert len(training_files) >= 5, (
-        f"Need at least 5 training files, found {len(training_files)}"
-    )
+    assert len(training_files) >= 5, f"Need at least 5 training files, found {len(training_files)}"
 
     # Randomly select 5 tasks
     random.seed(42)  # For reproducible tests
@@ -46,9 +44,7 @@ def test_load_5_random_tasks():
 
         # Test train pairs
         train_pairs = task["train"]
-        assert len(train_pairs) > 0, (
-            f"Task {task_path.name} should have at least 1 train pair"
-        )
+        assert len(train_pairs) > 0, f"Task {task_path.name} should have at least 1 train pair"
 
         for j, pair in enumerate(train_pairs):
             # Check structure
@@ -63,12 +59,8 @@ def test_load_5_random_tasks():
             input_shape = (len(pair["input"]), len(pair["input"][0]))
             output_shape = (len(pair["output"]), len(pair["output"][0]))
 
-            assert input_shape[0] <= 30 and input_shape[1] <= 30, (
-                f"Train input shape {input_shape} exceeds 30x30"
-            )
-            assert output_shape[0] <= 30 and output_shape[1] <= 30, (
-                f"Train output shape {output_shape} exceeds 30x30"
-            )
+            assert input_shape[0] <= 30 and input_shape[1] <= 30, f"Train input shape {input_shape} exceeds 30x30"
+            assert output_shape[0] <= 30 and output_shape[1] <= 30, f"Train output shape {output_shape} exceeds 30x30"
 
             # Check color ranges
             for row in pair["input"]:
@@ -83,9 +75,7 @@ def test_load_5_random_tasks():
 
         # Test test pairs
         test_pairs = task["test"]
-        assert len(test_pairs) > 0, (
-            f"Task {task_path.name} should have at least 1 test pair"
-        )
+        assert len(test_pairs) > 0, f"Task {task_path.name} should have at least 1 test pair"
 
         for j, pair in enumerate(test_pairs):
             # Check structure
@@ -96,25 +86,17 @@ def test_load_5_random_tasks():
 
             # Check input shape
             input_shape = (len(pair["input"]), len(pair["input"][0]))
-            assert input_shape[0] <= 30 and input_shape[1] <= 30, (
-                f"Test input shape {input_shape} exceeds 30x30"
-            )
+            assert input_shape[0] <= 30 and input_shape[1] <= 30, f"Test input shape {input_shape} exceeds 30x30"
 
             # Check input color ranges
             for row in pair["input"]:
                 for color in row:
-                    assert isinstance(color, int), (
-                        f"Test input color {color} is not int"
-                    )
-                    assert 0 <= color <= 9, (
-                        f"Test input color {color} not in range [0,9]"
-                    )
+                    assert isinstance(color, int), f"Test input color {color} is not int"
+                    assert 0 <= color <= 9, f"Test input color {color} not in range [0,9]"
 
             # Test output may or may not exist
             if "output" in pair and pair["output"]:
-                assert is_grid_valid(pair["output"]), (
-                    f"Test pair {j} output grid invalid"
-                )
+                assert is_grid_valid(pair["output"]), f"Test pair {j} output grid invalid"
                 output_shape = (len(pair["output"]), len(pair["output"][0]))
                 assert output_shape[0] <= 30 and output_shape[1] <= 30, (
                     f"Test output shape {output_shape} exceeds 30x30"
@@ -122,12 +104,8 @@ def test_load_5_random_tasks():
 
                 for row in pair["output"]:
                     for color in row:
-                        assert isinstance(color, int), (
-                            f"Test output color {color} is not int"
-                        )
-                        assert 0 <= color <= 9, (
-                            f"Test output color {color} not in range [0,9]"
-                        )
+                        assert isinstance(color, int), f"Test output color {color} is not int"
+                        assert 0 <= color <= 9, f"Test output color {color} not in range [0,9]"
 
 
 def test_iter_tasks_training():
@@ -178,9 +156,7 @@ def test_is_grid_valid():
 
     # Grid with inconsistent row lengths
     inconsistent_grid = [[0, 1], [2, 3, 4]]
-    assert not is_grid_valid(inconsistent_grid), (
-        "Inconsistent grid should fail validation"
-    )
+    assert not is_grid_valid(inconsistent_grid), "Inconsistent grid should fail validation"
 
     # Grid too large
     large_grid = [[0] * 31 for _ in range(31)]
@@ -188,15 +164,11 @@ def test_is_grid_valid():
 
     # Grid with invalid colors (non-integers)
     invalid_color_grid = [[0, 1.5, 2], [3, 4, 5]]
-    assert not is_grid_valid(invalid_color_grid), (
-        "Grid with non-integer colors should fail validation"
-    )
+    assert not is_grid_valid(invalid_color_grid), "Grid with non-integer colors should fail validation"
 
     # Grid with colors out of range
     out_of_range_grid = [[0, 1, 10], [3, 4, 5]]
-    assert not is_grid_valid(out_of_range_grid), (
-        "Grid with colors out of range should fail validation"
-    )
+    assert not is_grid_valid(out_of_range_grid), "Grid with colors out of range should fail validation"
 
 
 if __name__ == "__main__":

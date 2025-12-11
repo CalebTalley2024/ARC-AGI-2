@@ -62,7 +62,8 @@ def deserialize_grid(seq: List[int], mode: str = "row") -> Grid:
     # find separators
     i = 3
     # print(SEP, seq[i])
-    assert seq[i] == SEP; i += 1
+    assert seq[i] == SEP
+    i += 1
     # consume color inventory until SEP
     while seq[i] != SEP:
         i += 1

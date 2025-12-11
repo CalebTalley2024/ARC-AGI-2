@@ -111,11 +111,7 @@ def assert_valid_grid(g: Grid) -> None:
         raise ValueError(f"Grid exceeds ARC size limit (30x30), got shape {g.a.shape}")
 
     if g.a.min() < 0 or g.a.max() > 9:
-        raise ValueError(
-            f"Grid colors must be in range [0, 9], got range [{g.a.min()}, {g.a.max()}]"
-        )
+        raise ValueError(f"Grid colors must be in range [0, 9], got range [{g.a.min()}, {g.a.max()}]")
 
     if not g.a.flags.c_contiguous:
-        raise ValueError(
-            "Grid array is not contiguous in memory - use np.ascontiguousarray()"
-        )
+        raise ValueError("Grid array is not contiguous in memory - use np.ascontiguousarray()")

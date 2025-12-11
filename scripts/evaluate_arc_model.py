@@ -207,11 +207,11 @@ def evaluate_dataset(
     Returns:
         Dictionary with detailed results
     """
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"EVALUATING: {model_name}")
     print(f"DATASET: {dataset_name.upper()}")
     print(f"STRATEGIES: {', '.join(strategies)}")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     # Initialize results structure
     results = {
@@ -247,9 +247,7 @@ def evaluate_dataset(
         if task_count % 10 == 0:
             elapsed = time.time() - start_time
             rate = task_count / elapsed if elapsed > 0 else 0
-            print(
-                f"  Progress: {task_count} tasks | {rate:.2f} tasks/sec | " f"Elapsed: {elapsed/60:.1f}min", end="\r"
-            )
+            print(f"  Progress: {task_count} tasks | {rate:.2f} tasks/sec | Elapsed: {elapsed / 60:.1f}min", end="\r")
 
         # Skip if no training examples
         if len(task["train"]) == 0:
@@ -347,7 +345,7 @@ def evaluate_dataset(
     results["elapsed_seconds"] = elapsed
     results["total_tasks"] = task_count
 
-    print(f"\n  Completed: {task_count} tasks in {elapsed:.1f}s ({task_count/elapsed:.2f} tasks/sec)")
+    print(f"\n  Completed: {task_count} tasks in {elapsed:.1f}s ({task_count / elapsed:.2f} tasks/sec)")
 
     return results
 
@@ -355,9 +353,9 @@ def evaluate_dataset(
 # REPORTING
 def print_results_table(results: Dict):
     """Print formatted results table."""
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"RESULTS: {results['model_name']} - {results['dataset'].upper()}")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     print(f"\n{'Strategy':<15} | {'Success':<18} | {'Exact Match':<18} | {'Failed':<12}")
     print("-" * 80)
@@ -369,8 +367,8 @@ def print_results_table(results: Dict):
         failed = total - success
 
         if total > 0:
-            success_str = f"{success}/{total} ({100*success/total:.1f}%)"
-            exact_str = f"{exact}/{total} ({100*exact/total:.1f}%)"
+            success_str = f"{success}/{total} ({100 * success / total:.1f}%)"
+            exact_str = f"{exact}/{total} ({100 * exact / total:.1f}%)"
         else:
             success_str = "N/A"
             exact_str = "N/A"
@@ -381,9 +379,9 @@ def print_results_table(results: Dict):
     print(f"📊 Total tasks: {results['total_tasks']}")
 
     # Error breakdown
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("ERROR BREAKDOWN")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     for strategy, summary in results["summary"].items():
         if summary["errors"]:
@@ -463,7 +461,7 @@ Examples:
     if "ttt" in args.strategies or "ttt_poe" in args.strategies:
         print("⚠️  TTT strategies are much slower (~30s per task)")
         est_time *= 15
-        print(f"   Revised estimate: {est_time:.0f} minutes ({est_time/60:.1f} hours)")
+        print(f"   Revised estimate: {est_time:.0f} minutes ({est_time / 60:.1f} hours)")
 
     # Load model
     print("\n" + "=" * 80)
@@ -509,9 +507,9 @@ Examples:
 
     # Overall summary if multiple datasets
     if len(datasets) > 1:
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print("OVERALL SUMMARY ACROSS ALL DATASETS")
-        print(f"{'='*80}\n")
+        print(f"{'=' * 80}\n")
 
         print(f"{'Strategy':<15} | {'Success Rate':<20} | {'Exact Match Rate':<20}")
         print("-" * 70)

@@ -18,6 +18,7 @@ D4 = [
     "flip_transpose",
 ]
 
+
 # frozen for hashability (config spec)
 @dataclass(frozen=True)
 class ViewSpec:
@@ -141,9 +142,7 @@ def identity_cmap() -> Tuple[int, ...]:
     return tuple(range(10))
 
 
-def generate_palette_permutations(
-    palette: set[int], max_count: int = 8, seed: int = 42
-) -> list[Tuple[int, ...]]:
+def generate_palette_permutations(palette: set[int], max_count: int = 8, seed: int = 42) -> list[Tuple[int, ...]]:
     """
     Generate smart color permutations for a given palette.
 
@@ -245,9 +244,7 @@ def generate_data_driven_permutations(
             for in_color in range(10):
                 for out_color in range(10):
                     # Count positions where input has in_color and output has out_color
-                    C[in_color, out_color] += np.sum(
-                        (inp == in_color) & (out == out_color)
-                    )
+                    C[in_color, out_color] += np.sum((inp == in_color) & (out == out_color))
 
     result = []
     pal_list = sorted(palette)

@@ -81,9 +81,7 @@ def test_geometry_inverse():
         transformed = geom_apply(grid.a, geom_name)
         inv_name = geom_inverse(geom_name)
         restored = geom_apply(transformed, inv_name)
-        np.testing.assert_array_equal(
-            restored, grid.a, err_msg=f"Failed for {geom_name}"
-        )
+        np.testing.assert_array_equal(restored, grid.a, err_msg=f"Failed for {geom_name}")
 
 
 # Color map identity
@@ -122,9 +120,7 @@ def test_color_map_inverse():
 def test_view_inverse_grid():
     """Apply view then invert - should return to original grid."""
     grid = Grid(np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]]))
-    spec = ViewSpec(
-        geom="rot90", color_map=(1, 0, 2, 3, 4, 5, 6, 7, 8, 9), serialization="row"
-    )
+    spec = ViewSpec(geom="rot90", color_map=(1, 0, 2, 3, 4, 5, 6, 7, 8, 9), serialization="row")
 
     transformed = apply_view_grid(grid, spec)
     restored = invert_view_grid(transformed, spec)
@@ -168,9 +164,7 @@ def test_color_safety():
 
     test_specs = [
         ViewSpec(geom="rot90", color_map=identity_cmap(), serialization="row"),
-        ViewSpec(
-            geom="flip_h", color_map=(9, 8, 7, 6, 5, 4, 3, 2, 1, 0), serialization="row"
-        ),
+        ViewSpec(geom="flip_h", color_map=(9, 8, 7, 6, 5, 4, 3, 2, 1, 0), serialization="row"),
         ViewSpec(
             geom="transpose",
             color_map=(1, 0, 2, 3, 4, 5, 6, 7, 8, 9),
@@ -224,9 +218,7 @@ def valid_grid_strategy(draw):
     width = draw(st.integers(min_value=1, max_value=30))
     arr = draw(
         st.lists(
-            st.lists(
-                st.integers(min_value=0, max_value=9), min_size=width, max_size=width
-            ),
+            st.lists(st.integers(min_value=0, max_value=9), min_size=width, max_size=width),
             min_size=height,
             max_size=height,
         )

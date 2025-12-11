@@ -24,19 +24,19 @@ def load_task(path):
 def load_tasks(data_path):
     """
     Load all ARC tasks from a directory.
-    
+
     Args:
         data_path: Path to directory containing task JSON files
-        
+
     Returns:
         List of task dictionaries
     """
     tasks = []
     data_path = Path(data_path)
-    
+
     for task_file in data_path.glob("*.json"):
         tasks.append(load_task(task_file))
-    
+
     return tasks
 
 
@@ -54,9 +54,7 @@ def iter_tasks(split):
                and task_path is the file path to the task.
     """
     if split not in ["training", "evaluation"]:
-        raise ValueError(
-            f"Invalid split: {split}. Expected 'training' or 'evaluation'."
-        )
+        raise ValueError(f"Invalid split: {split}. Expected 'training' or 'evaluation'.")
 
     # glob.glob: returns a list of paths that match the pattern
     # iterates over each path in the list
@@ -130,17 +128,13 @@ def cache_index():
             for task, task_path in iter_tasks(split):
                 task_id = Path(task_path).stem  # filename without extension
                 # get train and test pairs from task
-                train_pairs = task.get(
-                    "train", []
-                )  # if no train, default to empty list
+                train_pairs = task.get("train", [])  # if no train, default to empty list
                 test_pairs = task.get("test", [])
 
                 # Validate entire task first - raise error if any pair is invalid
                 # Check all train pairs
                 for pair in train_pairs:
-                    if not is_grid_valid(pair["input"]) or not is_grid_valid(
-                        pair["output"]
-                    ):
+                    if not is_grid_valid(pair["input"]) or not is_grid_valid(pair["output"]):
                         raise ValueError(f"Task {task_id}: invalid train pair")
 
                 # Check all test pairs
@@ -149,11 +143,7 @@ def cache_index():
                         raise ValueError(
                             f"Task {task_id}: invalid test input"
                         )  # TODO is this how we want to handle invalid grids?
-                    if (
-                        "output" in pair
-                        and pair["output"]
-                        and not is_grid_valid(pair["output"])
-                    ):
+                    if "output" in pair and pair["output"] and not is_grid_valid(pair["output"]):
                         raise ValueError(f"Task {task_id}: invalid test output")
 
                 n_train_pairs = len(train_pairs)

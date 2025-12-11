@@ -18,7 +18,7 @@ def greedy_generate(model, input_ids: torch.LongTensor, max_new_tokens: int, eos
     device = next(model.parameters()).device
     cur = input_ids.to(device)
     for _ in range(max_new_tokens):
-        logits, = model(cur)
+        (logits,) = model(cur)
         next_id = torch.argmax(logits[:, -1, :], dim=-1, keepdim=True)
         cur = torch.cat([cur, next_id], dim=1)
         if int(next_id.item()) == eos_id:

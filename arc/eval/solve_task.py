@@ -143,13 +143,13 @@ def solve(task_id: str, ckpt: str, use_ttt: bool = True):
     # ttt implementation
     if use_ttt:
         model, cached_weights, trainer = test_time_train_on_task(
-        base_model,
-        task,
-        device=device,
-        steps=50,
-        lr=1e-4,
-        bs=4,
-    )
+            base_model,
+            task,
+            device=device,
+            steps=50,
+            lr=1e-4,
+            bs=4,
+        )
     else:
         model = base_model
         cached_weights = None
@@ -192,8 +192,7 @@ def solve(task_id: str, ckpt: str, use_ttt: bool = True):
     poe_score = poe_sum(all_scores)
 
     print(
-        f"Task {task_id}: best_view_score={best_view_score:.3f}, "
-        f"poe_sum={poe_score:.3f}, best_view={best_view.geom}"
+        f"Task {task_id}: best_view_score={best_view_score:.3f}, poe_sum={poe_score:.3f}, best_view={best_view.geom}"
     )
 
     # Make predictions on TEST set using the best view

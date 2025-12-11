@@ -24,7 +24,7 @@ This document tracks changes and updates to the ARC-AGI-2 dataset tasks and code
 - `multiplier = 1` (default): On-the-fly augmentation, dataset size unchanged, memory efficient
 - `multiplier > 1`: Pre-generate augmented copies, multiplies dataset size, uses more memory
 
-**Backward Compatibility:** ✅ Fully backward compatible, default behavior unchanged
+**Backward Compatibility:** Fully backward compatible, default behavior unchanged
 
 ## Dataset Updates
 
