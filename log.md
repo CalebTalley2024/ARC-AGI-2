@@ -50,3 +50,7 @@ Part 4
     - Visualizes an example including input grid and expected grid  
     - Shows the prediction made by the chosen model  
     - Displays the log score
+
+
+## 12 12 25
+- ~5000 lines of code

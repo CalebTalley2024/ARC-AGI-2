@@ -32,6 +32,7 @@ if __name__ == "__main__":
     train_pair = task['train'][0]
     x = from_list(train_pair['input'])
     y = from_list(train_pair['output'])
+    #print id of x and y
     print("x = ", train_pair['input'])
     print("y = ", train_pair['output'])
     g_pred, score = generate_and_score(model, x, y, mode="row", max_new=512)
