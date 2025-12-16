@@ -14,6 +14,7 @@ from arc.grids.views import (
     generate_palette_permutations,
 )
 from arc.eval.poe import poe_sum
+from arc.serialize import pack_example, deserialize_grid, BOS, SEP, EOS
 from arc.eval.scorer import mean_logp_output
 from arc.models.tiny_lm import TinyLM, TinyLMConfig
 from arc.models.ttt import TestTimeTrainer
@@ -66,19 +67,29 @@ def generate_and_score(
 
     score = mean_logp_output(model, out.clone(), sep_token_id=SEP)
 
+    # extract output tokens between input and output
     ids = out.squeeze(0).tolist()
-
-    prompt_len = len(prompt)
-    y_tokens = ids[prompt_len:]
-
-    y_seq = [BOS] + y_tokens
-
+    
     try:
-        g_pred = deserialize_grid(y_seq, mode=mode)
-        g_pred = Grid(g_pred)
-    except Exception:
-        g_pred = x_grid
-
+        first_eos_idx = ids.index(EOS)
+    except ValueError:
+        raise ValueError("No EOS token found in generated sequence")
+    
+    # find the first SEP after the first EOS
+    sep_after_eos = None
+    for i in range(first_eos_idx + 1, len(ids)):
+        if ids[i] == SEP:
+            sep_after_eos = i
+            break
+    
+    if sep_after_eos is None:
+        raise ValueError("No SEP token found after first EOS - output grid not generated")
+    
+    # extract output grid tokens: from after the separating SEP to the end
+    output_tokens = [BOS] + ids[sep_after_eos + 1:]
+    
+    # deserialize the output tokens back into a grid
+    g_pred = deserialize_grid(output_tokens, mode=mode)
     return g_pred, float(score)
 
 

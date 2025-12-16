@@ -8,12 +8,13 @@ function to perform adaptation and prediction.
 
 from __future__ import annotations
 
+
+import random
+import copy
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from typing import Dict, Any, Tuple
-
-# Import from your existing codebase
+from typing import Dict, Any
 from arc.models.train import ArcPairsDataset, Collate
 from arc.utils.constants import TRAINING_CONFIG
 
@@ -35,6 +36,20 @@ ttt = TestTimeTrainer(
 )
 """
 
+def prepare_ttt_dataset(eval_task):
+    """
+    Splits the training examples of a task into a TTT-Train set and a
+    Pseudo-Test set (validation) for Test-Time Training.
+
+    The eval task should have more than one example.
+    """
+    new_task = {}
+    train_examples = copy.deepcopy(eval_task['train'])
+    random.shuffle(train_examples)
+    new_task['test'] = [train_examples[0]]
+    new_task['train'] = train_examples[1:]
+
+    return new_task
 
 class TestTimeTrainer:
     """
@@ -74,12 +89,14 @@ class TestTimeTrainer:
         Args:
             task: A single task dictionary containing 'train' and 'test' keys.
         """
-        # 1. Create a dataset just for this task
         # We wrap the single task in a list because ArcPairsDataset expects a list of tasks
         # Use max_sequence_length if available, otherwise fall back to 2048
         max_len = TRAINING_CONFIG.get("max_sequence_length", 2048)
+
+        ttt_tasks = prepare_ttt_dataset(task)
+
         dataset = ArcPairsDataset(
-            tasks=[task],
+            tasks=ttt_tasks,
             mode=TRAINING_CONFIG["serialization_mode"],
             max_len=max_len,
             augmentation_config=self.augmentation_config,
