@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import random
 from pathlib import Path
-from typing import Dict, List
 
 import numpy as np
 import torch
@@ -84,7 +83,7 @@ class ArcPairsDataset(Dataset):
                 if self.use_augmentation:
                     if self.augmentation_multiplier > 1:
                         # Pre-generate augmented copies to increase dataset size
-                        for copy_idx in range(self.augmentation_multiplier):
+                        for _copy_idx in range(self.augmentation_multiplier):
                             # Sample augmentation type for this copy
                             aug_type = sample_augmentation_type(self.augmentation_config)
 
@@ -255,23 +254,23 @@ def train(
 
     # Display augmentation settings
     if use_augmentation:
-        print(f"Data Augmentation: ENABLED")
+        print("Data Augmentation: ENABLED")
         print(
             f"  Mode: {'Pre-generated (multiplies dataset)' if augmentation_multiplier > 1 else 'On-the-fly (dynamic per epoch)'}"
         )
         if augmentation_multiplier > 1:
             print(f"  Dataset multiplier: {augmentation_multiplier}x")
-        print(f"  Configuration:")
+        print("  Configuration:")
         print(f"    random: {aug_config.get('random', 0)}")
         print(f"    None (identity): {aug_config.get('None', 0)}")
         specific = aug_config.get("specific", {})
         if any(prob > 0 for prob in specific.values()):
-            print(f"    specific:")
+            print("    specific:")
             for aug_type, prob in specific.items():
                 if prob > 0:
                     print(f"      {aug_type}: {prob}")
     else:
-        print(f"Data Augmentation: DISABLED")
+        print("Data Augmentation: DISABLED")
 
     # Load data and create dataset
     tasks = load_tasks(data_path)
@@ -320,7 +319,7 @@ def train(
 
             # Load model state
             model.load_state_dict(checkpoint["model"])
-            print(f"Loaded model state from checkpoint")
+            print("Loaded model state from checkpoint")
 
             # Load best loss if available
             if "loss" in checkpoint:
@@ -330,12 +329,12 @@ def train(
             # Load optimizer state if available
             if "optimizer" in checkpoint:
                 opt.load_state_dict(checkpoint["optimizer"])
-                print(f"Loaded optimizer state from checkpoint")
+                print("Loaded optimizer state from checkpoint")
 
             # Load scaler state if available
             if "scaler" in checkpoint:
                 scaler.load_state_dict(checkpoint["scaler"])
-                print(f"Loaded scaler state from checkpoint")
+                print("Loaded scaler state from checkpoint")
 
             # Load training step if available
             if "step" in checkpoint:
@@ -367,7 +366,7 @@ def train(
         total_loss = 0.0
         opt.zero_grad(set_to_none=True)
 
-        for accum_step in range(grad_accum_steps):
+        for _accum_step in range(grad_accum_steps):
             try:
                 x, y = next(it)
             except StopIteration:

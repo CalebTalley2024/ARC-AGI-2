@@ -1,5 +1,7 @@
+from typing import Dict, List, Tuple
+
 import numpy as np
-from typing import List, Dict, Tuple
+
 import arc.grids.core as Grid
 import arc.grids.views as ViewSpec
 

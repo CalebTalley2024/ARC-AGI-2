@@ -6,15 +6,16 @@ This test mocks the model generation to verify the extraction logic works correc
 
 import sys
 from pathlib import Path
-import torch
+
 import numpy as np
+import torch
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from arc.grids.core import from_list
-from arc.serialize import pack_example, serialize_grid, BOS, SEP, EOS
 from arc.eval.solve_task import generate_and_score
+from arc.grids.core import from_list
+from arc.serialize import BOS, EOS, SEP, pack_example
 
 
 class MockModel:
@@ -69,8 +70,8 @@ def test_generate_and_score_extraction():
     print(f"Packed sequence: {packed}")
 
     # Mock the greedy_generate function to return our packed sequence
-    import arc.models.infer as infer_module
     import arc.eval.scorer as scorer_module
+    import arc.models.infer as infer_module
 
     original_greedy_generate = infer_module.greedy_generate
     original_mean_logp = scorer_module.mean_logp_output
@@ -122,8 +123,8 @@ def test_generate_and_score_with_different_sizes():
         ([[1, 2, 3], [4, 5, 6], [7, 8, 9]], [[9, 8, 7], [6, 5, 4], [3, 2, 1]]),  # 3x3
     ]
 
-    import arc.models.infer as infer_module
     import arc.eval.scorer as scorer_module
+    import arc.models.infer as infer_module
 
     original_greedy_generate = infer_module.greedy_generate
     original_mean_logp = scorer_module.mean_logp_output
@@ -184,8 +185,8 @@ def test_generate_and_score_error_handling():
     x = from_list([[1, 2], [3, 4]])
     y = from_list([[5, 6], [7, 8]])
 
-    import arc.models.infer as infer_module
     import arc.eval.scorer as scorer_module
+    import arc.models.infer as infer_module
 
     original_greedy_generate = infer_module.greedy_generate
     original_mean_logp = scorer_module.mean_logp_output
@@ -207,7 +208,7 @@ def test_generate_and_score_error_handling():
     try:
         g_pred, score = generate_and_score(mock_model, x, y, device="cpu", mode="row")
         print("Should have raised ValueError for missing EOS")
-        assert False, "Should have raised ValueError"
+        raise AssertionError("Should have raised ValueError")
     except (ValueError, IndexError) as e:
         print(f"Correctly raised error: {type(e).__name__}: {e}")
 
@@ -223,7 +224,7 @@ def test_generate_and_score_error_handling():
     try:
         g_pred, score = generate_and_score(mock_model, x, y, device="cpu", mode="row")
         print("❌ Should have raised ValueError for missing SEP after EOS")
-        assert False, "Should have raised ValueError"
+        raise AssertionError("Should have raised ValueError")
     except (ValueError, IndexError) as e:
         print(f"Correctly raised error: {type(e).__name__}: {e}")
 

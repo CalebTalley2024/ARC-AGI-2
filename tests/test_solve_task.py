@@ -1,17 +1,15 @@
 import sys
 from pathlib import Path
+
 import torch
-import numpy as np
-import matplotlib.pyplot as plt
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from arc.grids.core import from_list
 from arc.eval.solve_task import generate_and_score
-from arc.models.tiny_lm import TinyLM, TinyLMConfig
+from arc.grids.core import from_list
 from arc.io.loader import iter_tasks
-from arc.viz.viz_task_attempt import visualize_results
+from arc.models.tiny_lm import TinyLM, TinyLMConfig
 
 
 def load_trained_model(model_name: str = "final(set 1).pt"):

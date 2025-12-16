@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from typing import Tuple
 
 import numpy as np
+from scipy.optimize import linear_sum_assignment
 
 from arc.grids.core import Grid
 from arc.utils.constants import D4
-from scipy.optimize import linear_sum_assignment
 
 D4 = [
     "id",

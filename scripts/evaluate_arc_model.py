@@ -8,30 +8,29 @@ Usage:
     python evaluate_arc_model.py --help
 """
 
-import sys
-from pathlib import Path
-import torch
-import numpy as np
-import time
-import json
-from datetime import datetime
-from typing import Dict, List, Tuple, Optional
-import copy
 import argparse
+import json
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
+
+import numpy as np
+import torch
 
 # Setup paths
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
+from arc.eval.poe import poe_sum
+from arc.eval.scorer import mean_logp_output
 from arc.grids.core import from_list
 from arc.io.loader import iter_tasks
-from arc.models.tiny_lm import TinyLM, TinyLMConfig
-from arc.serialize import pack_example, deserialize_grid, BOS, SEP, EOS
-from arc.eval.scorer import mean_logp_output
 from arc.models.infer import greedy_generate
+from arc.models.tiny_lm import TinyLM, TinyLMConfig
 from arc.models.ttt import TestTimeTrainer
-from arc.eval.poe import poe_sum
-
+from arc.serialize import BOS, EOS, SEP, deserialize_grid, pack_example
 
 # CORE EVALUATION FUNCTIONS
 
@@ -441,7 +440,7 @@ Examples:
     print("=" * 80)
     print("ARC-AGI MODEL EVALUATION")
     print("=" * 80)
-    print(f"\nConfiguration:")
+    print("\nConfiguration:")
     print(f"  Model: {args.model}")
     print(f"  Strategies: {', '.join(args.strategies)}")
     print(f"  Dataset: {args.dataset}")
@@ -469,7 +468,7 @@ Examples:
     print("=" * 80)
     try:
         model, step, cfg = load_model(args.model, args.device)
-        print(f"✓ Model loaded successfully")
+        print("✓ Model loaded successfully")
         print(f"  Step: {step}")
         print(f"  Config: d_model={cfg.d_model}, n_layers={cfg.n_layers}, n_heads={cfg.n_heads}")
     except Exception as e:

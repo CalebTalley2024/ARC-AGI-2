@@ -1,11 +1,12 @@
-import sys
 import os
+import sys
+
 import numpy as np
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from arc.grids.core import diff, assert_valid_grid, Grid, from_list
+from arc.grids.core import Grid, assert_valid_grid, diff, from_list
 
 
 def test_round_trip():
@@ -29,7 +30,7 @@ def test_diff_mask():
 def test_validation():
     try:
         Grid(np.array([[10]]))  # out of range
-        assert False
+        raise AssertionError()
     except ValueError:
         assert True
 
@@ -43,7 +44,7 @@ def test_assert_valid_grid():
     # Test invalid type
     try:
         assert_valid_grid("not a grid")
-        assert False, "Should have raised ValueError"
+        raise AssertionError("Should have raised ValueError")
     except ValueError as e:
         assert "Expected Grid object" in str(e)
 
@@ -87,29 +88,29 @@ def test_is_copy_flag():
     """Test that the is_copy flag works correctly."""
     # Original grid should have is_copy=False
     g = Grid(np.array([[1, 2], [3, 4]]))
-    assert g.is_copy == False
+    assert not g.is_copy
 
     # Copy should have is_copy=True
     copy = g.copy()
-    assert copy.is_copy == True
+    assert copy.is_copy
 
 
 def test_integer_validation():
     """Test that Grid enforces integer values."""
     # Integer values should work
-    g1 = Grid(np.array([[1, 2], [3, 4]]))
-    g2 = Grid(np.array([[1.0, 2.0], [3.0, 4.0]]))  # Float integers
+    Grid(np.array([[1, 2], [3, 4]]))
+    Grid(np.array([[1.0, 2.0], [3.0, 4.0]]))  # Float integers
 
     # Non-integer values should fail
     try:
         Grid(np.array([[1.5, 2], [3, 4]]))
-        assert False, "Should have raised ValueError for non-integer"
+        raise AssertionError("Should have raised ValueError for non-integer")
     except ValueError as e:
         assert "All grid values must be integers" in str(e)
 
     try:
         Grid(np.array([[1, 2.7], [3, 4]]))
-        assert False, "Should have raised ValueError for non-integer"
+        raise AssertionError("Should have raised ValueError for non-integer")
     except ValueError as e:
         assert "All grid values must be integers" in str(e)
 
@@ -148,13 +149,13 @@ def test_from_list_is_copy_flag():
 
     # Test with is_copy=False (default)
     g1 = from_list(lst, is_copy=False)
-    assert g1.is_copy == False
-    assert g1.a.flags.writeable == False
+    assert not g1.is_copy
+    assert not g1.a.flags.writeable
 
     # Test with is_copy=True
     g2 = from_list(lst, is_copy=True)
-    assert g2.is_copy == True
-    assert g2.a.flags.writeable == True
+    assert g2.is_copy
+    assert g2.a.flags.writeable
 
 
 def test_from_list_round_trip():

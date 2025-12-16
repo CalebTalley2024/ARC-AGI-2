@@ -1,14 +1,14 @@
-import pytest
-import json
-import random  # TODO move seed to arc/util/seeding.py
-from pathlib import Path
-import sys
 import os
+import random  # TODO move seed to arc/util/seeding.py
+import sys
+from pathlib import Path
+
+import pytest
 
 # Add the project root to Python path (goes one lvl above tests folder)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from arc.io.loader import load_task, iter_tasks, is_grid_valid
+from arc.io.loader import is_grid_valid, iter_tasks, load_task
 
 
 def test_load_task_basic():

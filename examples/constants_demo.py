@@ -45,7 +45,7 @@ def main():
         f"Training: batch_size={train_config['batch_size']}, lr={train_config['learning_rate']}, max_seq_len={train_config['max_sequence_length']}"
     )
     print(f"Vocabulary size: {VOCAB_SIZE}")
-    print(f"✓ Sequence lengths aligned: model_max_len == training_max_seq_len")
+    print("✓ Sequence lengths aligned: model_max_len == training_max_seq_len")
 
     # Memory estimation
     params = estimate_model_parameters(model_config)

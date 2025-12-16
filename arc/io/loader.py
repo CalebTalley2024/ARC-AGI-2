@@ -1,9 +1,9 @@
 import glob  # pattern matching
 import json
-import glob  # pattern matching
 from pathlib import (
     Path,
 )  # pathlib is a library for handling file paths #Path is a class in pathlib
+
 from arc.utils.seeding import set_seed
 
 """
@@ -17,7 +17,7 @@ def load_task(path):
     """
     Load a single ARC task JSON file.
     """
-    with open(path, "r") as f:
+    with open(path) as f:
         return json.load(f)
 
 

@@ -8,13 +8,14 @@ function to perform adaptation and prediction.
 
 from __future__ import annotations
 
-
-import random
 import copy
+import random
+from typing import Any
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from typing import Dict, Any
+
 from arc.models.train import ArcPairsDataset, Collate
 from arc.utils.constants import TRAINING_CONFIG
 
@@ -46,7 +47,7 @@ class TestTimeTrainer:
         learning_rate: float = 1e-4,
         steps: int = 10,
         batch_size: int = 4,
-        augmentation_config: Dict = None,
+        augmentation_config: dict = None,
     ):
         self.model = model
         self.device = next(model.parameters()).device
@@ -58,15 +59,15 @@ class TestTimeTrainer:
         # Loss function (same as training)
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=TRAINING_CONFIG["ignore_index"])
 
-    def cache_weights(self) -> Dict[str, torch.Tensor]:
+    def cache_weights(self) -> dict[str, torch.Tensor]:
         """Saves a copy of the model weights to CPU memory."""
         return {k: v.cpu().clone() for k, v in self.model.state_dict().items()}
 
-    def restore_weights(self, state_dict: Dict[str, torch.Tensor]):
+    def restore_weights(self, state_dict: dict[str, torch.Tensor]):
         """Restores the model weights from the cache."""
         self.model.load_state_dict(state_dict)
 
-    def train_on_task(self, task: Dict[str, Any]):
+    def train_on_task(self, task: dict[str, Any]):
         """
         Performs Test-Time Training on the 'train' pairs of a single task.
 

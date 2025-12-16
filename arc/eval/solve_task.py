@@ -1,28 +1,26 @@
 import json
 from pathlib import Path
-from typing import Dict, Any, Tuple
+from typing import Any, Dict, Tuple
+
 import numpy as np
 import torch
 
+from arc.eval.poe import poe_sum
+from arc.eval.scorer import mean_logp_output
 from arc.grids.core import Grid
-from arc.io.loader import load_task
 from arc.grids.views import (
     ViewSpec,
     apply_view_grid,
-    invert_view_answer,
     identity_cmap,
-    generate_palette_permutations,
+    invert_view_answer,
 )
-from arc.eval.poe import poe_sum
-from arc.serialize import pack_example, deserialize_grid, BOS, SEP, EOS
-from arc.eval.scorer import mean_logp_output
+from arc.io.loader import load_task
+from arc.models.infer import greedy_generate
 from arc.models.tiny_lm import TinyLM, TinyLMConfig
 from arc.models.ttt import TestTimeTrainer
-from arc.models.infer import greedy_generate
-from arc.serialize.task_tokenizer import deserialize_grid, serialize_grid, SEP, EOS
+from arc.serialize import BOS, EOS, SEP, deserialize_grid, pack_example
+from arc.serialize.task_tokenizer import EOS, SEP, deserialize_grid, pack_example, serialize_grid
 from arc.utils.constants import BOS
-
-from arc.serialize.task_tokenizer import pack_example
 
 
 def load_task_by_id(task_id: str) -> Dict[str, Any]:

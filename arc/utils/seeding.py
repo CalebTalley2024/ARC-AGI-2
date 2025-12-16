@@ -1,4 +1,6 @@
-import os, random
+import os
+import random
+
 import numpy as np
 
 

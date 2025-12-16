@@ -1,22 +1,15 @@
 from __future__ import annotations
 
-from typing import List
-
 import numpy as np
 
 from arc.grids.core import Grid
 from arc.utils.constants import (
     BOS,
     EOS,
-    MAX_GRID_SIZE,
-    NUM_COLORS,
-    PAD,
     SEP,
-    TOK_C_BASE,
     TOK_H_BASE,
     TOK_PIXEL_BASE,
     TOK_W_BASE,
-    VOCAB_SIZE,
     tok_c,
     tok_h,
     tok_px,
@@ -26,7 +19,7 @@ from arc.utils.constants import (
 # ---- Serialization ----
 
 
-def serialize_grid(g: Grid, mode: str = "row") -> List[int]:
+def serialize_grid(g: Grid, mode: str = "row") -> list[int]:
     """
     Serialize a grid to a list of tokens.
 
@@ -37,7 +30,7 @@ def serialize_grid(g: Grid, mode: str = "row") -> List[int]:
     H, W = g.shape
     seq = [BOS, tok_w(W), tok_h(H)]
     # set of colors present, capped to 10 anyway
-    cols = sorted(list(set(g.a.flatten().tolist())))
+    cols = sorted(set(g.a.flatten().tolist()))
     seq.append(SEP)
     # write color inventory (optional; helpful prior)
     for c in cols:
@@ -55,7 +48,7 @@ def serialize_grid(g: Grid, mode: str = "row") -> List[int]:
     return seq
 
 
-def deserialize_grid(seq: List[int], mode: str = "row") -> Grid:
+def deserialize_grid(seq: list[int], mode: str = "row") -> Grid:
     assert seq[0] == BOS
     W = (seq[1] - TOK_W_BASE) + 1
     H = (seq[2] - TOK_H_BASE) + 1
@@ -82,7 +75,7 @@ def deserialize_grid(seq: List[int], mode: str = "row") -> Grid:
 
 
 # ---- Pair (X->Y) example packing ----
-def pack_example(x: Grid, y: Grid, mode: str = "row") -> List[int]:
+def pack_example(x: Grid, y: Grid, mode: str = "row") -> list[int]:
     # input then output separated by SEP
     sx = serialize_grid(x, mode)
     sy = serialize_grid(y, mode)

@@ -11,7 +11,6 @@ This module provides functions to apply various transformations to grid pairs:
 from __future__ import annotations
 
 import random
-from typing import Tuple
 
 import numpy as np
 
@@ -123,7 +122,7 @@ def apply_augmentation_to_example(
     input_grid: Grid,
     output_grid: Grid,
     augmentation_type: str = "random",
-) -> Tuple[Grid, Grid]:
+) -> tuple[Grid, Grid]:
     """
     Apply augmentation to a single input-output pair.
 

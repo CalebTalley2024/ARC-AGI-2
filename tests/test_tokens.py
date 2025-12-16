@@ -1,18 +1,16 @@
-import pytest
 import numpy as np
-from hypothesis import given, strategies as st
-from arc.grids.core import Grid, from_list
-from arc.serialize.tokens import (
-    build_vocab,
-    encode_grid,
-    decode_grid,
-    encode_task,
-    decode_output,
-    get_sequence_stats_for_dataset,
-    measure_sequence_length,
-    SPECIAL_TOKENS,
-)
+
 import arc.grids.views as ViewSpec
+from arc.grids.core import from_list
+from arc.serialize.tokens import (
+    SPECIAL_TOKENS,
+    build_vocab,
+    decode_grid,
+    decode_output,
+    encode_grid,
+    encode_task,
+    measure_sequence_length,
+)
 
 
 def test_build_vocab():
