@@ -735,18 +735,3 @@ python scripts/render_task.py --task-id 123 --out-dir out/vis/
 **Deliverables:** configs/base.yaml checked into git + a sample log.
 
 **Deliverables:** notebook with screenshots; timing row for 5 tasks.
-
----
-
----
-
-## **Acceptance checklist (end of Week 0)**
-
-- Repo scaffold with working **pre-commit**
-- Environment prints correct **CUDA device** (or HIP on AMD)
-- ARC JSON loads; **index.jsonl** built; validators pass
-- **Grid** core ops + **views** and **inverse views** pass property tests
-- **Serialization** encode/decode is reversible on random grids
-- **Visualizer** saves example PNGs
-
----

@@ -107,3 +107,19 @@ When your output grid is ready, click the green "Submit!" button to check your a
 After you've obtained the correct answer for the current test input grid, you can switch to the next test input grid for the task using the "Next test input" button (if there is any available; most tasks only have one test input).
 
 When you're done with a task, use the "load task" button to open a new task.
+
+
+Two folders: `evaluation` and `training`.
+
+Each task has:
+
+- `train` pairs, which are used for training models.
+- `test` pairs, which are used for evaluating models.
+
+It's important to note that both the `training` and `evaluation` sets have `train` pairs.
+
+Tasks can have different sizes for both `train` and `test` pairs.
+
+When working with grids, we treat them as read-only and copy when transforming. This prevents accidental in-place edits during search or scoring.
+
+Trained models should be placed in the `trained_models` folder.

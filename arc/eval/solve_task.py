@@ -1,63 +1,272 @@
-import torch
-import sys
+import json
 from pathlib import Path
-# Add project root to path (use __file__ to get absolute path)
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
+from typing import Any, Dict, Tuple
 
-from arc.serialize import pack_example, deserialize_grid, BOS, SEP, EOS
+import numpy as np
+import torch
+
+from arc.eval.poe import poe_sum
 from arc.eval.scorer import mean_logp_output
-from arc.models.infer import greedy_generate  # your existing inference
+from arc.grids.core import Grid
+from arc.grids.views import (
+    ViewSpec,
+    apply_view_grid,
+    identity_cmap,
+    invert_view_answer,
+)
+from arc.io.loader import load_task
+from arc.models.infer import greedy_generate
+from arc.models.tiny_lm import TinyLM, TinyLMConfig
+from arc.models.ttt import TestTimeTrainer
+from arc.serialize import BOS, EOS, SEP, deserialize_grid, pack_example
+from arc.serialize.task_tokenizer import EOS, SEP, deserialize_grid, pack_example, serialize_grid
+from arc.utils.constants import BOS
 
-def generate_and_score(model, x_grid, y_grid, device = "cpu", mode: str = "row", max_new: int = 2048):
-    '''
-    Generate and score a single task.
-    
-    Args:
-        model: The model to use for generation.
-        x_grid: The input grid.
-        y_grid: The output grid.
-        device: The device to use for generation.
-        mode: The mode to use for generation.
-        max_new: The maximum number of new tokens to generate.
-    '''
-    # 1) pack example
-    seq = pack_example(x_grid, y_grid, mode=mode) #serializes the example
-    inp = torch.tensor(seq[:-1], dtype=torch.long).unsqueeze(0).to(device)
 
-    # 2) greedy generate continuation
-    out = greedy_generate(model, inp, max_new_tokens=max_new, eos_id=EOS)  # (1, T')
+def load_task_by_id(task_id: str) -> Dict[str, Any]:
+    paths = [
+        Path(f"data/raw/arc/evaluation/{task_id}.json"),
+    ]
+    for p in paths:
+        if p.exists():
+            return load_task(str(p))
+    raise FileNotFoundError(f"Task {task_id} not found in raw data")
 
-    # 3) compute mean log-prob on output segment
-    #score can be negative
-    # the larger the negative score, the worse the performanc (eg. -0.4 is better than -1.6)
+
+def load_model(ckpt_path: str, device: str):
+    ckpt = torch.load(ckpt_path, map_location="cpu")
+    if "cfg" in ckpt:
+        cfg = TinyLMConfig(**ckpt["cfg"])
+    else:
+        cfg = TinyLMConfig()
+
+    model = TinyLM(cfg)
+    model.load_state_dict(ckpt["model"])
+    model.to(device)
+    model.eval()
+    return model
+
+
+def generate_and_score(
+    model, x_grid: Grid, y_grid: Grid, device="cpu", mode: str = "row", max_new: int = 2048
+) -> Tuple[Grid, float]:
+    """
+    Generate and score a single pair (input -> output).
+    Used for selecting the best view based on training data.
+    """
+
+    prompt = pack_example(x_grid, y_grid, mode=mode) + [SEP]
+    inp = torch.tensor(prompt, dtype=torch.long).unsqueeze(0).to(device)
+
+    max_allowed_new = max(1, max_new - inp.size(1))
+    eff_max_new = min(max_new, max_allowed_new)
+
+    out = greedy_generate(model, inp, max_new_tokens=eff_max_new, eos_id=EOS)
+
     score = mean_logp_output(model, out.clone(), sep_token_id=SEP)
 
-    # 4) extract output tokens between input and output
+    # extract output tokens between input and output
     ids = out.squeeze(0).tolist()
-    
-    # The structure is: [BOS, input_grid..., EOS, SEP, output_grid..., EOS]
-    # We need to find the SEP that comes AFTER the first EOS (this separates input from output)
+
     try:
         first_eos_idx = ids.index(EOS)
     except ValueError:
         raise ValueError("No EOS token found in generated sequence")
-    
-    # Find the first SEP after the first EOS
+
+    # find the first SEP after the first EOS
     sep_after_eos = None
     for i in range(first_eos_idx + 1, len(ids)):
         if ids[i] == SEP:
             sep_after_eos = i
             break
-    
+
     if sep_after_eos is None:
         raise ValueError("No SEP token found after first EOS - output grid not generated")
-    
-    # Extract output grid tokens: from after the separating SEP to the end
-    # Note: pack_example drops BOS from output, so we need to add it back
-    output_tokens = [BOS] + ids[sep_after_eos + 1:]
-    
+
+    # extract output grid tokens: from after the separating SEP to the end
+    output_tokens = [BOS] + ids[sep_after_eos + 1 :]
+
     # deserialize the output tokens back into a grid
     g_pred = deserialize_grid(output_tokens, mode=mode)
     return g_pred, float(score)
 
+
+def test_time_train_on_task(base_model, task_dict, device, steps=50, lr=1e-4, bs=4):
+    trainer = TestTimeTrainer(model=base_model, learning_rate=lr, steps=steps, batch_size=bs)
+    cached = trainer.cache_weights()
+    trainer.train_on_task(task_dict)
+
+    return base_model, cached, trainer
+
+
+def build_fewshot_prompt(
+    task_grids, x_test_v: Grid, best_view: ViewSpec, mode: str = "row", max_train_examples: int = 3
+):
+    seq = []
+
+    train_pairs = task_grids["train"][:max_train_examples]
+    for pair in train_pairs:
+        x_tr = apply_view_grid(pair["input"], best_view)
+        y_tr = apply_view_grid(pair["output"], best_view)
+
+        sx = serialize_grid(x_tr, mode=mode)
+        sy = serialize_grid(y_tr, mode=mode)
+
+        seq.extend(sx)
+        seq.append(SEP)
+        seq.extend(sy[1:])
+        seq.append(SEP)
+
+    sx_test = serialize_grid(x_test_v, mode=mode)
+    seq.extend(sx_test)
+    seq.append(SEP)
+
+    return seq
+
+
+def solve(task_id: str, ckpt: str, use_ttt: bool = True):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    base_model = load_model(ckpt, device)
+
+    task = load_task_by_id(task_id)
+
+    # Convert raw task dict to Grid objects for manipulation
+    def to_grid_dict(t):
+        t_new = {"train": [], "test": []}
+        for pair in t["train"]:
+            t_new["train"].append(
+                {
+                    "input": Grid(np.array(pair["input"], dtype=np.int8)),
+                    "output": Grid(np.array(pair["output"], dtype=np.int8)),
+                }
+            )
+        for pair in t["test"]:
+            p = {"input": Grid(np.array(pair["input"], dtype=np.int8))}
+            if "output" in pair:
+                p["output"] = Grid(np.array(pair["output"], dtype=np.int8))
+            t_new["test"].append(p)
+        return t_new
+
+    task_grids = to_grid_dict(task)
+
+    # ttt implementation
+    if use_ttt:
+        model, cached_weights, trainer = test_time_train_on_task(
+            base_model,
+            task,
+            device=device,
+            steps=50,
+            lr=1e-4,
+            bs=4,
+        )
+    else:
+        model = base_model
+        cached_weights = None
+        trainer = None
+
+    # multiple views
+    views = [
+        ViewSpec(geom="id", color_map=identity_cmap(), serialization="row"),
+        ViewSpec(geom="rot90", color_map=identity_cmap(), serialization="row"),
+        ViewSpec(geom="rot180", color_map=identity_cmap(), serialization="row"),
+        # ViewSpec(geom="rot270", color_map=identity_cmap(), serialization="row"),
+        # ViewSpec(geom="flip_h", color_map=identity_cmap(), serialization="row"),
+        # ViewSpec(geom="flip_v", color_map=identity_cmap(), serialization="row"),
+        # ViewSpec(geom="transpose", color_map=identity_cmap(), serialization="row"),
+    ]
+
+    x0 = task_grids["train"][0]["input"]
+    y0 = task_grids["train"][0]["output"]
+
+    candidates = []
+    for v in views:
+        x_v = apply_view_grid(x0, v)
+        y_v = apply_view_grid(y0, v)
+
+        g_pred_v, score_v = generate_and_score(model, x_v, y_v, device, mode="row")
+
+        # Invert prediction to get back to original space
+        g_pred = invert_view_answer(g_pred_v, v)
+        candidates.append((g_pred, score_v))
+
+    # candidates is list of (grid, score)
+    best_grid_train, best_view_score = max(candidates, key=lambda t: t[1])
+
+    # Find which view was best
+    best_view_idx = candidates.index((best_grid_train, best_view_score))
+    best_view = views[best_view_idx]
+
+    # PoE
+    all_scores = [s for _, s in candidates]
+    poe_score = poe_sum(all_scores)
+
+    print(
+        f"Task {task_id}: best_view_score={best_view_score:.3f}, poe_sum={poe_score:.3f}, best_view={best_view.geom}"
+    )
+
+    # Make predictions on TEST set using the best view
+    preds = []
+    for test_idx, test_pair in enumerate(task_grids["test"]):
+        x_test = test_pair["input"]
+
+        # apply best view
+        x_test_v = apply_view_grid(x_test, best_view)
+
+        # construct prompt: x_v + SEP (few-shot with train examples)
+        prompt = build_fewshot_prompt(task_grids, x_test_v, best_view, mode="row")
+
+        # Ensure prompt + generated tokens do not exceed model max_len
+        max_len = getattr(model, "cfg", None).max_len if getattr(model, "cfg", None) is not None else 2048
+        if len(prompt) > max_len:
+            prompt = prompt[-max_len:]
+        max_new = max(1, max_len - len(prompt))
+
+        inp = torch.tensor(prompt, dtype=torch.long).unsqueeze(0).to(device)
+
+        # generate
+        out = greedy_generate(model, inp, max_new_tokens=max_new, eos_id=EOS)
+        ids = out.squeeze(0).tolist()
+
+        # extract Y part
+        prompt_len = len(prompt)
+        y_tokens = ids[prompt_len:]
+        y_seq = [BOS] + y_tokens
+
+        try:
+            g_pred_v = deserialize_grid(y_seq, mode="row")
+            g_pred_v = Grid(g_pred_v)
+        except Exception as e:
+            print(f"Warning: Failed to deserialize test output {test_idx}: {e}")
+            print(f"  y_seq length: {len(y_seq)}, first few tokens: {y_seq[:10]}")
+            g_pred_v = x_test_v
+
+        g_pred = invert_view_answer(g_pred_v, best_view)
+        preds.append(g_pred)
+
+    # Save outputs
+    out_dir = Path("outputs")
+    out_dir.mkdir(exist_ok=True)
+
+    # Convert grids to list of lists for JSON serialization
+    pred_lists = [p.to_list() for p in preds]
+
+    with open(out_dir / f"{task_id}.json", "w") as f:
+        json.dump(
+            {
+                "task_id": task_id,
+                "preds": pred_lists,
+                "scores": {
+                    "view_scores": all_scores,
+                    "poe_sum": poe_score,
+                    "best_view_score": best_view_score,
+                    "selected_view": best_view.geom,
+                },
+            },
+            f,
+            indent=2,
+        )
+
+    # Restore weights (cleanup)
+    trainer.restore_weights(cached_weights)
+
+    return preds

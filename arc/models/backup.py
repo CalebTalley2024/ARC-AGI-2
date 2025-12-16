@@ -27,9 +27,7 @@ def setup_drive_backup(drive_backup_path: str) -> bool:
         # Check if Google Drive is mounted (Colab environment)
         drive_path = Path(drive_backup_path)
         if not drive_path.parent.exists():
-            print(
-                "Google Drive not mounted or path not accessible. Skipping Drive backup."
-            )
+            print("Google Drive not mounted or path not accessible. Skipping Drive backup.")
             return False
 
         # Create backup directories
@@ -44,9 +42,7 @@ def setup_drive_backup(drive_backup_path: str) -> bool:
         return False
 
 
-def backup_checkpoint_to_drive(
-    checkpoint_path: Path, drive_backup_path: str
-) -> bool:
+def backup_checkpoint_to_drive(checkpoint_path: Path, drive_backup_path: str) -> bool:
     """
     Backup a checkpoint to Google Drive.
 
@@ -83,9 +79,7 @@ def backup_checkpoint_to_drive(
         return False
 
 
-def backup_final_checkpoint(
-    final_checkpoint_path: Path, drive_backup_path: str
-) -> bool:
+def backup_final_checkpoint(final_checkpoint_path: Path, drive_backup_path: str) -> bool:
     """
     Backup final training checkpoint to Google Drive history.
 

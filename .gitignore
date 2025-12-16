@@ -148,3 +148,8 @@ uv.lock
 
 .flake8
 *.code-workspace
+
+.ruff_cache/
+buffer.ipynb
+
+

@@ -11,13 +11,11 @@ This module provides functions to apply various transformations to grid pairs:
 from __future__ import annotations
 
 import random
-from typing import Tuple
 
 import numpy as np
 
 from arc.grids.core import Grid
-from arc.grids.views import (D4, ViewSpec, apply_view_grid,
-                             generate_palette_permutations, identity_cmap)
+from arc.grids.views import D4, ViewSpec, apply_view_grid, generate_palette_permutations, identity_cmap
 
 
 def get_random_augmentation(
@@ -124,7 +122,7 @@ def apply_augmentation_to_example(
     input_grid: Grid,
     output_grid: Grid,
     augmentation_type: str = "random",
-) -> Tuple[Grid, Grid]:
+) -> tuple[Grid, Grid]:
     """
     Apply augmentation to a single input-output pair.
 
@@ -224,7 +222,6 @@ def is_augmentation_enabled(augmentation_config: dict) -> bool:
     Returns:
         True if any augmentation is enabled, False otherwise
     """
-    return (
-        augmentation_config.get("random", 0) > 0
-        or any(prob > 0 for prob in augmentation_config.get("specific", {}).values())
+    return augmentation_config.get("random", 0) > 0 or any(
+        prob > 0 for prob in augmentation_config.get("specific", {}).values()
     )

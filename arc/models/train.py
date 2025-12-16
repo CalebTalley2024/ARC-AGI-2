@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import random
 from pathlib import Path
-from typing import Dict, List
 
 import numpy as np
 import torch
@@ -20,22 +19,24 @@ from tqdm import tqdm
 
 from arc.grids.core import Grid
 from arc.io.loader import load_tasks
-from arc.models.augmentation import (apply_augmentation_to_example,
-                                     is_augmentation_enabled,
-                                     sample_augmentation_type)
-from arc.models.backup import (backup_checkpoint_to_drive,
-                               backup_final_checkpoint, setup_drive_backup)
+from arc.models.augmentation import apply_augmentation_to_example, is_augmentation_enabled, sample_augmentation_type
+from arc.models.backup import backup_checkpoint_to_drive, backup_final_checkpoint, setup_drive_backup
 from arc.models.tiny_lm import TinyLM, TinyLMConfig
 from arc.serialize.task_tokenizer import pack_example
-from arc.utils.constants import (AUGMENTATION_CONFIG, MODEL_CONFIG,
-                                 TRAINING_CONFIG, VOCAB_SIZE, get_model_config,
-                                 get_training_config)
+from arc.utils.constants import (
+    AUGMENTATION_CONFIG,
+    MODEL_CONFIG,
+    TRAINING_CONFIG,
+    VOCAB_SIZE,
+    get_model_config,
+    get_training_config,
+)
 
 
 class ArcPairsDataset(Dataset):
     """
     Dataset for ARC task pairs with optional data augmentation.
-    
+
     Supports two augmentation modes:
     1. On-the-fly (multiplier=1): Augmentation applied dynamically in __getitem__,
        dataset size stays constant, different augmentations each epoch.
@@ -67,9 +68,9 @@ class ArcPairsDataset(Dataset):
 
         # Check if augmentation is enabled
         self.use_augmentation = is_augmentation_enabled(self.augmentation_config)
-        
+
         # Get augmentation multiplier (1 = on-the-fly, >1 = pre-generate copies)
-        self.augmentation_multiplier = self.augmentation_config.get('augmentation_multiplier', 1)
+        self.augmentation_multiplier = self.augmentation_config.get("augmentation_multiplier", 1)
 
         for task_dict in tasks:
             # Access 'train' key from task dictionary
@@ -82,10 +83,10 @@ class ArcPairsDataset(Dataset):
                 if self.use_augmentation:
                     if self.augmentation_multiplier > 1:
                         # Pre-generate augmented copies to increase dataset size
-                        for copy_idx in range(self.augmentation_multiplier):
+                        for _copy_idx in range(self.augmentation_multiplier):
                             # Sample augmentation type for this copy
                             aug_type = sample_augmentation_type(self.augmentation_config)
-                            
+
                             # Apply augmentation if not identity
                             if aug_type != "identity":
                                 aug_input, aug_output = apply_augmentation_to_example(
@@ -93,15 +94,17 @@ class ArcPairsDataset(Dataset):
                                 )
                             else:
                                 aug_input, aug_output = input_grid, output_grid
-                            
+
                             # Convert to sequence and store
                             seq = pack_example(aug_input, aug_output, mode)
                             if len(seq) <= max_len:
-                                self.examples.append({
-                                    "sequence": seq,
-                                    "is_augmented": (aug_type != "identity"),
-                                    "augmentation_type": aug_type
-                                })
+                                self.examples.append(
+                                    {
+                                        "sequence": seq,
+                                        "is_augmented": (aug_type != "identity"),
+                                        "augmentation_type": aug_type,
+                                    }
+                                )
                     else:
                         # On-the-fly augmentation: store original grids
                         self.examples.append(
@@ -138,9 +141,7 @@ class ArcPairsDataset(Dataset):
 
             # Apply augmentation if not identity
             if aug_type != "identity":
-                input_grid, output_grid = apply_augmentation_to_example(
-                    input_grid, output_grid, aug_type
-                )
+                input_grid, output_grid = apply_augmentation_to_example(input_grid, output_grid, aug_type)
 
             # Convert augmented grids to sequence
             seq = pack_example(input_grid, output_grid, self.mode)
@@ -155,6 +156,7 @@ class ArcPairsDataset(Dataset):
         x = torch.tensor(seq[:-1], dtype=torch.long)
         y = torch.tensor(seq[1:], dtype=torch.long)
         return x, y
+
 
 class Collate:
     """Collate function for DataLoader with padding."""
@@ -171,6 +173,7 @@ class Collate:
             bx[i, : x.size(0)] = x
             by[i, : y.size(0)] = y
         return bx, by
+
 
 def train(
     model_dir: str,
@@ -208,7 +211,7 @@ def train(
     print("*" * 20)
     print(f"Using device: {device}")
     print("*" * 20)
-    
+
     # Setup Google Drive backup if enabled
     drive_backup_enabled = False
     if enable_drive_backup:
@@ -216,9 +219,7 @@ def train(
         if drive_backup_enabled:
             print("Google Drive automatic backup enabled")
         else:
-            print(
-                "Google Drive backup disabled - training will continue without cloud backup"
-            )
+            print("Google Drive backup disabled - training will continue without cloud backup")
 
     # Get configurations
     if training_profile:
@@ -241,38 +242,36 @@ def train(
 
     effective_batch_size = bs * grad_accum_steps
     print(f"Training config: steps={steps}, batch_size={bs}, lr={lr}")
-    print(
-        f"Gradient accumulation: {grad_accum_steps} steps, effective_batch_size={effective_batch_size}"
-    )
-    print(
-        f"Model config: d_model={model_config['d_model']}, n_layers={model_config['n_layers']}"
-    )
+    print(f"Gradient accumulation: {grad_accum_steps} steps, effective_batch_size={effective_batch_size}")
+    print(f"Model config: d_model={model_config['d_model']}, n_layers={model_config['n_layers']}")
 
     # Use provided augmentation config or default from constants
     aug_config = augmentation_config or AUGMENTATION_CONFIG
 
     # Check if augmentation is enabled
     use_augmentation = is_augmentation_enabled(aug_config)
-    augmentation_multiplier = aug_config.get('augmentation_multiplier', 1)
+    augmentation_multiplier = aug_config.get("augmentation_multiplier", 1)
 
     # Display augmentation settings
     if use_augmentation:
-        print(f"Data Augmentation: ENABLED")
-        print(f"  Mode: {'Pre-generated (multiplies dataset)' if augmentation_multiplier > 1 else 'On-the-fly (dynamic per epoch)'}")
+        print("Data Augmentation: ENABLED")
+        print(
+            f"  Mode: {'Pre-generated (multiplies dataset)' if augmentation_multiplier > 1 else 'On-the-fly (dynamic per epoch)'}"
+        )
         if augmentation_multiplier > 1:
             print(f"  Dataset multiplier: {augmentation_multiplier}x")
-        print(f"  Configuration:")
+        print("  Configuration:")
         print(f"    random: {aug_config.get('random', 0)}")
         print(f"    None (identity): {aug_config.get('None', 0)}")
         specific = aug_config.get("specific", {})
         if any(prob > 0 for prob in specific.values()):
-            print(f"    specific:")
+            print("    specific:")
             for aug_type, prob in specific.items():
                 if prob > 0:
                     print(f"      {aug_type}: {prob}")
     else:
-        print(f"Data Augmentation: DISABLED")
-    
+        print("Data Augmentation: DISABLED")
+
     # Load data and create dataset
     tasks = load_tasks(data_path)
     ds = ArcPairsDataset(
@@ -281,16 +280,14 @@ def train(
         max_len=train_config["max_sequence_length"],
         augmentation_config=aug_config,
     )
-    
+
     # Display dataset size information
     print(f"Dataset size: {len(ds)} examples")
     if use_augmentation and augmentation_multiplier > 1:
         original_size = len(ds) // augmentation_multiplier
         print(f"  (Original: ~{original_size} examples × {augmentation_multiplier} multiplier)")
-    
-    dl = DataLoader(
-        ds, batch_size=bs, shuffle=True, drop_last=True, collate_fn=Collate()
-    )
+
+    dl = DataLoader(ds, batch_size=bs, shuffle=True, drop_last=True, collate_fn=Collate())
 
     # Create model
     cfg = TinyLMConfig(
@@ -306,9 +303,7 @@ def train(
         betas=train_config["betas"],
         weight_decay=train_config["weight_decay"],
     )
-    scaler = torch.amp.GradScaler(
-        device, enabled=(device == "cuda" and train_config["use_amp"])
-    )
+    scaler = torch.amp.GradScaler(device, enabled=(device == "cuda" and train_config["use_amp"]))
     loss_fn = nn.CrossEntropyLoss(ignore_index=train_config["ignore_index"])
 
     # Best model tracking and checkpoint resuming
@@ -324,7 +319,7 @@ def train(
 
             # Load model state
             model.load_state_dict(checkpoint["model"])
-            print(f"Loaded model state from checkpoint")
+            print("Loaded model state from checkpoint")
 
             # Load best loss if available
             if "loss" in checkpoint:
@@ -334,12 +329,12 @@ def train(
             # Load optimizer state if available
             if "optimizer" in checkpoint:
                 opt.load_state_dict(checkpoint["optimizer"])
-                print(f"Loaded optimizer state from checkpoint")
+                print("Loaded optimizer state from checkpoint")
 
             # Load scaler state if available
             if "scaler" in checkpoint:
                 scaler.load_state_dict(checkpoint["scaler"])
-                print(f"Loaded scaler state from checkpoint")
+                print("Loaded scaler state from checkpoint")
 
             # Load training step if available
             if "step" in checkpoint:
@@ -358,7 +353,7 @@ def train(
             print(f"No checkpoint found at {checkpoint_path}, starting from scratch")
         else:
             print("Resume disabled, starting from scratch")
-    
+
     it = iter(dl)
     # Adjust range to account for resumed training
     remaining_steps = steps - start_step
@@ -371,7 +366,7 @@ def train(
         total_loss = 0.0
         opt.zero_grad(set_to_none=True)
 
-        for accum_step in range(grad_accum_steps):
+        for _accum_step in range(grad_accum_steps):
             try:
                 x, y = next(it)
             except StopIteration:
@@ -379,9 +374,7 @@ def train(
                 x, y = next(it)
             x, y = x.to(device), y.to(device)
 
-            with torch.amp.autocast(
-                device, enabled=(device == "cuda" and train_config["use_amp"])
-            ):
+            with torch.amp.autocast(device, enabled=(device == "cuda" and train_config["use_amp"])):
                 logits = model(x)
                 loss = loss_fn(logits.view(-1, logits.size(-1)), y.view(-1))
                 # Scale loss by accumulation steps for proper averaging
@@ -391,9 +384,7 @@ def train(
             total_loss += loss.item()
 
         # Update parameters after accumulating gradients
-        torch.nn.utils.clip_grad_norm_(
-            model.parameters(), train_config["grad_clip_norm"]
-        )
+        torch.nn.utils.clip_grad_norm_(model.parameters(), train_config["grad_clip_norm"])
         scaler.step(opt)
         scaler.update()
 
@@ -426,7 +417,7 @@ def train(
             if drive_backup_enabled:
                 backup_checkpoint_to_drive(best_checkpoint_path, drive_backup_path)
 
-            pbar.set_description(f"loss={total_loss:.3f} ★NEW BEST★ (step {step})")
+            pbar.set_description(f"loss={total_loss:.3f} NEW BEST (step {step})")
 
         if (step + 1) % train_config["save_every"] == 0:
             out = Path(model_dir)
@@ -443,8 +434,8 @@ def train(
                 "training_config": train_config,
                 "model_config": model_config,
             }
-            torch.save(checkpoint_dict, out / f"ckpt_{step+1}.pt")
-    
+            torch.save(checkpoint_dict, out / f"ckpt_{step + 1}.pt")
+
     # Final save
     out = Path(model_dir)
     out.mkdir(parents=True, exist_ok=True)

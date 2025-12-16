@@ -8,33 +8,16 @@ function to perform adaptation and prediction.
 
 from __future__ import annotations
 
-
-import random
 import copy
+import random
+from typing import Any
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from typing import Dict, Any
+
 from arc.models.train import ArcPairsDataset, Collate
 from arc.utils.constants import TRAINING_CONFIG
-
-
-'''
-# Configuration for TTT
-ttt_config = {
-    "augmentation_multiplier": 5,  # Generate 5 augmented copies per example
-    "random": 0.5,  # 50% chance of random aug
-    "specific": {"rotate": 0.1, "flip": 0.1}
-}
-
-# Initialize the trainer
-ttt = TestTimeTrainer(
-    model=model,
-    learning_rate=5e-5,  # Usually lower than pre-training LR
-    steps=20,  # 10-50 steps is usually sufficient
-    augmentation_config=ttt_config
-)
-'''
 
 
 def prepare_ttt_dataset(eval_task):
@@ -45,12 +28,13 @@ def prepare_ttt_dataset(eval_task):
     The eval task should have more than one example.
     """
     new_task = {}
-    train_examples = copy.deepcopy(eval_task['train'])
+    train_examples = copy.deepcopy(eval_task["train"])
     random.shuffle(train_examples)
-    new_task['test'] = [train_examples[0]]
-    new_task['train'] = train_examples[1:]
+    new_task["test"] = [train_examples[0]]
+    new_task["train"] = train_examples[1:]
 
     return new_task
+
 
 class TestTimeTrainer:
     """
@@ -58,12 +42,12 @@ class TestTimeTrainer:
     """
 
     def __init__(
-            self,
-            model: nn.Module,
-            learning_rate: float = 1e-4,
-            steps: int = 10,
-            batch_size: int = 4,
-            augmentation_config: Dict = None
+        self,
+        model: nn.Module,
+        learning_rate: float = 1e-4,
+        steps: int = 10,
+        batch_size: int = 4,
+        augmentation_config: dict = None,
     ):
         self.model = model
         self.device = next(model.parameters()).device
@@ -75,43 +59,42 @@ class TestTimeTrainer:
         # Loss function (same as training)
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=TRAINING_CONFIG["ignore_index"])
 
-    def cache_weights(self) -> Dict[str, torch.Tensor]:
+    def cache_weights(self) -> dict[str, torch.Tensor]:
         """Saves a copy of the model weights to CPU memory."""
         return {k: v.cpu().clone() for k, v in self.model.state_dict().items()}
 
-    def restore_weights(self, state_dict: Dict[str, torch.Tensor]):
+    def restore_weights(self, state_dict: dict[str, torch.Tensor]):
         """Restores the model weights from the cache."""
         self.model.load_state_dict(state_dict)
 
-    def train_on_task(self, task: Dict[str, Any]):
+    def train_on_task(self, task: dict[str, Any]):
         """
         Performs Test-Time Training on the 'train' pairs of a single task.
 
         Args:
             task: A single task dictionary containing 'train' and 'test' keys.
         """
-        # 1. Create a dataset just for this task
+        # We wrap the single task in a list because ArcPairsDataset expects a list of tasks
+        # Use max_sequence_length if available, otherwise fall back to 2048
+        max_len = TRAINING_CONFIG.get("max_sequence_length", 2048)
+
         ttt_tasks = prepare_ttt_dataset(task)
+
         dataset = ArcPairsDataset(
             tasks=ttt_tasks,
             mode=TRAINING_CONFIG["serialization_mode"],
-            max_len=TRAINING_CONFIG["max_sequence_length"],
-            augmentation_config=self.augmentation_config
+            max_len=max_len,
+            augmentation_config=self.augmentation_config,
         )
 
         # If the task has too few examples, we might not need a dataloader,
         # but using one ensures consistency with your main training loop.
-        dl = DataLoader(
-            dataset,
-            batch_size=min(len(dataset), self.batch_size),
-            shuffle=True,
-            collate_fn=Collate()
-        )
+        dl = DataLoader(dataset, batch_size=min(len(dataset), self.batch_size), shuffle=True, collate_fn=Collate())
 
-        # 2. Setup Optimizer (Reset every time TTT is called)
+        # Setup Optimizer (Reset every time TTT is called)
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
 
-        # 3. Training Loop
+        # Training Loop
         self.model.train()
 
         for _ in range(self.steps):
