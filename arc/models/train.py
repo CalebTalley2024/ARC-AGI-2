@@ -418,7 +418,7 @@ def train(
             if drive_backup_enabled:
                 backup_checkpoint_to_drive(best_checkpoint_path, drive_backup_path)
 
-            pbar.set_description(f"loss={total_loss:.3f} ★NEW BEST★ (step {step})")
+            pbar.set_description(f"loss={total_loss:.3f} NEW BEST (step {step})")
 
         if (step + 1) % train_config["save_every"] == 0:
             out = Path(model_dir)

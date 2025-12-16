@@ -1,14 +1,8 @@
-# TODO: Import numpy as np
 import numpy as np
-
-# TODO: Import typing (List, Dict, Tuple)
 from typing import List, Dict, Tuple
-
-# TODO: Import arc.grids.core (Grid)
 import arc.grids.core as Grid
 import arc.grids.views as ViewSpec
 
-# TODO: Define special token constants
 SPECIAL_TOKENS = {
     "BOS": "[BOS]",
     "SEP": "[SEP]",
@@ -21,12 +15,6 @@ SPECIAL_TOKENS = {
 }
 
 
-# TODO: Implement build_vocab() -> Dict[str, int]
-#   - Create mapping from token strings to ids
-#   - Start with special tokens (ids 0-10)
-#   - Add color tokens '0'-'9' (ids 11-20)
-#   - Add dimension tokens '1'-'30' (ids 21-50) (optional)
-#   - Return vocab dict
 def build_vocab() -> Dict[str, int]:
     vocab = {}
     # Add special tokens
@@ -38,20 +26,11 @@ def build_vocab() -> Dict[str, int]:
     return vocab
 
 
-# TODO: Implement build_inverse_vocab(vocab: dict) -> Dict[int, str]
-#   - Invert vocab dict for decoding
-#   - Return {id: token_str}
 def build_inverse_vocab(vocab: Dict[str, int]) -> Dict[int, str]:
     inv_vocab = {v: k for k, v in vocab.items()}
     return inv_vocab
 
 
-# TODO: Implement serialize_grid_cells(grid: Grid, serialization: str) -> List[int]
-#   - If serialization == 'row':
-#     - Flatten grid.a in row-major order: grid.a.flatten()
-#   - If serialization == 'col':
-#     - Flatten in column-major order: grid.a.T.flatten()
-#   - Return list of color ids
 def serialize_grid_cells(grid: Grid, serialization: str) -> List[int]:
     if serialization == "row":
         return grid.a.flatten().tolist()
@@ -61,14 +40,6 @@ def serialize_grid_cells(grid: Grid, serialization: str) -> List[int]:
         raise ValueError(f"Unknown serialization: {serialization}")
 
 
-# TODO: Implement encode_grid(grid: Grid, vocab: dict, serialization: str = 'row') -> List[int]
-#   - Get H, W from grid.shape
-#   - Create token list: []
-#   - Add width token: vocab['[WIDTH]'], W
-#   - Add height token: vocab['[HEIGHT]'], H
-#   - Serialize cells: serialize_grid_cells(grid, serialization)
-#   - Convert cells to tokens using vocab
-#   - Return token list
 def encode_grid(grid: Grid, vocab: Dict[str, int], serialization: str = "row") -> List[int]:
     H, W = grid.shape
     tokens = []
@@ -82,12 +53,6 @@ def encode_grid(grid: Grid, vocab: Dict[str, int], serialization: str = "row") -
     return tokens
 
 
-# TODO: Implement decode_grid(tokens: List[int], inv_vocab: dict, serialization: str = 'row') -> Grid
-#   - Parse tokens to find width and height
-#   - Extract color tokens (skip special tokens)
-#   - Convert token ids to color ids using inv_vocab
-#   - Reshape to (H, W) based on serialization order
-#   - Return Grid.from_list()
 def decode_grid(tokens: List[int], inv_vocab: Dict[int, str], serialization: str = "row") -> Grid:
     # Parse width and height
     W = None
@@ -121,18 +86,6 @@ def decode_grid(tokens: List[int], inv_vocab: Dict[int, str], serialization: str
     return Grid.from_list(array.tolist())
 
 
-# TODO: Implement encode_task(task: dict, vocab: dict, view_spec: ViewSpec) -> List[int]
-#   - Start with [BOS] token
-#   - Add [N_TRAIN] metadata
-#   - For each train pair:
-#     - Add [SEP]
-#     - Encode input grid
-#     - Add [SEP]
-#     - Encode output grid
-#   - Add [SEP]
-#   - Encode test input
-#   - Add [EOS]
-#   - Return full token sequence
 def encode_task(task: dict, vocab: Dict[str, int], view_spec: ViewSpec) -> List[int]:
     tokens = []
     tokens.append(vocab[SPECIAL_TOKENS["BOS"]])
@@ -153,13 +106,6 @@ def encode_task(task: dict, vocab: Dict[str, int], view_spec: ViewSpec) -> List[
     return tokens
 
 
-# TODO: Implement decode_output(tokens: List[int], inv_vocab: dict, expected_shape: Tuple[int,int]) -> Grid
-#   - Strip special tokens
-#   - Parse dimensions if present
-#   - Extract color tokens
-#   - Reshape to expected_shape
-#   - Validate shape
-#   - Return Grid
 def decode_output(tokens: List[int], inv_vocab: Dict[int, str], expected_shape: Tuple[int, int]) -> Grid:
     color_tokens = []
     for token in tokens:
@@ -174,11 +120,6 @@ def decode_output(tokens: List[int], inv_vocab: Dict[int, str], expected_shape: 
     return Grid.from_list(array.tolist())
 
 
-# TODO: Implement measure_sequence_length(task: dict, vocab: dict) -> dict
-#   - Encode task with identity view
-#   - Count total tokens
-#   - Count tokens per grid
-#   - Return statistics dict
 def measure_sequence_length(task: dict, vocab: Dict[str, int], view_spec: ViewSpec) -> dict:
     tokens = encode_task(task, vocab, view_spec)
     total_tokens = len(tokens)
@@ -207,11 +148,6 @@ def measure_sequence_length(task: dict, vocab: Dict[str, int], view_spec: ViewSp
     }
 
 
-# TODO: Implement get_sequence_stats_for_dataset(tasks: list) -> dict
-#   - Measure sequence lengths for all tasks
-#   - Compute min, max, mean, median, p95
-#   - Return summary statistics
-#   - Record in README.md
 def get_sequence_stats_for_dataset(tasks: list, vocab: Dict[str, int], view_spec: ViewSpec) -> dict:
     lengths = []
     for task in tasks:

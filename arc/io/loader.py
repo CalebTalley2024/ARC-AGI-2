@@ -140,9 +140,7 @@ def cache_index():
                 # Check all test pairs
                 for pair in test_pairs:
                     if not is_grid_valid(pair["input"]):
-                        raise ValueError(
-                            f"Task {task_id}: invalid test input"
-                        )  # TODO is this how we want to handle invalid grids?
+                        raise ValueError(f"Task {task_id}: invalid test input")
                     if "output" in pair and pair["output"] and not is_grid_valid(pair["output"]):
                         raise ValueError(f"Task {task_id}: invalid test output")
 
@@ -183,7 +181,6 @@ def cache_index():
                 )
 
 
-# TODO check this
 def create_split_manifests(dev_ratio=0.2, seed=42):
     """
 

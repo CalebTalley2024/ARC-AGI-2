@@ -19,23 +19,6 @@ from arc.models.train import ArcPairsDataset, Collate
 from arc.utils.constants import TRAINING_CONFIG
 
 
-"""
-# Configuration for TTT
-ttt_config = {
-    "augmentation_multiplier": 5,  # Generate 5 augmented copies per example
-    "random": 0.5,  # 50% chance of random aug
-    "specific": {"rotate": 0.1, "flip": 0.1}
-}
-
-# Initialize the trainer
-ttt = TestTimeTrainer(
-    model=model,
-    learning_rate=5e-5,  # Usually lower than pre-training LR
-    steps=20,  # 10-50 steps is usually sufficient
-    augmentation_config=ttt_config
-)
-"""
-
 def prepare_ttt_dataset(eval_task):
     """
     Splits the training examples of a task into a TTT-Train set and a
@@ -44,12 +27,13 @@ def prepare_ttt_dataset(eval_task):
     The eval task should have more than one example.
     """
     new_task = {}
-    train_examples = copy.deepcopy(eval_task['train'])
+    train_examples = copy.deepcopy(eval_task["train"])
     random.shuffle(train_examples)
-    new_task['test'] = [train_examples[0]]
-    new_task['train'] = train_examples[1:]
+    new_task["test"] = [train_examples[0]]
+    new_task["train"] = train_examples[1:]
 
     return new_task
+
 
 class TestTimeTrainer:
     """
@@ -106,10 +90,10 @@ class TestTimeTrainer:
         # but using one ensures consistency with your main training loop.
         dl = DataLoader(dataset, batch_size=min(len(dataset), self.batch_size), shuffle=True, collate_fn=Collate())
 
-        # 2. Setup Optimizer (Reset every time TTT is called)
+        # Setup Optimizer (Reset every time TTT is called)
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
 
-        # 3. Training Loop
+        # Training Loop
         self.model.train()
 
         for _ in range(self.steps):

@@ -69,25 +69,25 @@ def generate_and_score(
 
     # extract output tokens between input and output
     ids = out.squeeze(0).tolist()
-    
+
     try:
         first_eos_idx = ids.index(EOS)
     except ValueError:
         raise ValueError("No EOS token found in generated sequence")
-    
+
     # find the first SEP after the first EOS
     sep_after_eos = None
     for i in range(first_eos_idx + 1, len(ids)):
         if ids[i] == SEP:
             sep_after_eos = i
             break
-    
+
     if sep_after_eos is None:
         raise ValueError("No SEP token found after first EOS - output grid not generated")
-    
+
     # extract output grid tokens: from after the separating SEP to the end
-    output_tokens = [BOS] + ids[sep_after_eos + 1:]
-    
+    output_tokens = [BOS] + ids[sep_after_eos + 1 :]
+
     # deserialize the output tokens back into a grid
     g_pred = deserialize_grid(output_tokens, mode=mode)
     return g_pred, float(score)

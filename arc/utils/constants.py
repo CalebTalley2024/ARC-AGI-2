@@ -198,7 +198,7 @@ AUGMENTATION_CONFIG = {
 }
 
 # Example configurations:
-# 1. No augmentation (default):
+# - No augmentation (default):
 #    {'random': 0.0, 'None': 1.0, 'specific': {...all 0.0}, 'augmentation_multiplier': 1}
 #
 # 2. On-the-fly: 50% random augmentation, 50% no augmentation (dataset size unchanged):

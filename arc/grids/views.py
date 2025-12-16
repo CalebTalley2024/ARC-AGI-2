@@ -5,6 +5,7 @@ import numpy as np
 
 from arc.grids.core import Grid
 from arc.utils.constants import D4
+from scipy.optimize import linear_sum_assignment
 
 D4 = [
     "id",
@@ -53,7 +54,6 @@ def geom_apply(a: np.ndarray, name: str) -> np.ndarray:
         raise ValueError(f"Unknown geometry operation: {name}")
 
 
-# TODO: double check
 def geom_inverse(name: str) -> str:
     """
     get the inverse of a geometry operation.
@@ -207,7 +207,6 @@ def generate_palette_permutations(palette: set[int], max_count: int = 8, seed: i
     return result[:max_count]
 
 
-# TODO: integrate with steps 6 and 7
 def generate_data_driven_permutations(
     train_pairs: list[dict], palette: set[int], max_count: int = 5
 ) -> list[Tuple[int, ...]]:
@@ -225,12 +224,6 @@ def generate_data_driven_permutations(
     Returns:
         List of color map tuples based on training data patterns
     """
-    try:
-        from scipy.optimize import linear_sum_assignment
-    except ImportError:
-        # Fallback if scipy not available
-        return [identity_cmap()]
-
     # Build co-occurrence matrix C[in_color][out_color]
     # Count how often input color i appears at same position as output color j
     C = np.zeros((10, 10), dtype=int)
